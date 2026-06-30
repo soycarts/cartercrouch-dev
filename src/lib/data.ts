@@ -6,6 +6,8 @@
 export const profile = {
   name: "Carter Crouch",
   initials: "CC",
+  // Hero avatar — place the image file at public/profile.jpeg.
+  avatar: "/profile.jpeg",
   // The hero cycles through these one at a time.
   roles: ["Analytics Engineer", "Entrepreneur", "Lifelong Learner"],
   location: "Los Angeles / London",

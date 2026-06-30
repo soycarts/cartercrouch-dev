@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { profile } from "@/lib/data";
 import { FileIcon } from "./icons";
 
@@ -61,12 +62,14 @@ export function Hero() {
           </p>
         </div>
 
-        <div
-          aria-hidden
-          className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-sky-400 font-mono text-3xl font-semibold text-white shadow-lg shadow-accent/20 sm:h-32 sm:w-32"
-        >
-          {profile.initials}
-        </div>
+        <Image
+          src={profile.avatar}
+          alt={profile.name}
+          width={256}
+          height={256}
+          priority
+          className="h-28 w-28 shrink-0 rounded-full object-cover shadow-lg shadow-accent/20 ring-1 ring-black/5 sm:h-32 sm:w-32 dark:ring-white/10"
+        />
       </div>
 
       <div className="mt-10">
