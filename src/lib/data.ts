@@ -56,7 +56,7 @@ export const projects: Project[] = [
   {
     name: "Bountify.ai",
     description:
-      "Turns data gaps into bounties — a platform that converts missing or incomplete datasets into incentivized tasks, crowdsourcing the data collection and completion that teams need.",
+      "Turns data gaps into bounties — crowdsourcing the data teams are missing through incentivized tasks.",
     tags: ["AI", "Data", "Web"],
     website: "https://bountify.ai",
     gradient: "from-violet-500 to-indigo-500",
@@ -64,7 +64,7 @@ export const projects: Project[] = [
   {
     name: "Zapflex",
     description:
-      "An autonomous home-battery flexibility company run by a swarm of AI agents. It optimizes home batteries against dynamic electricity tariffs, aggregates the fleet, and earns grid-services flexibility revenue — with the agents running the company end-to-end. Built for the Cursor “Hands Off” hackathon.",
+      "An autonomous home-battery flexibility company run by a swarm of AI agents — optimizing batteries against dynamic tariffs to earn grid-services revenue.",
     tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
     gradient: "from-emerald-500 to-teal-500",
@@ -72,7 +72,7 @@ export const projects: Project[] = [
   {
     name: "Swarmtip",
     description:
-      "A swarm of AI agents that finds underpriced draws at the 2026 World Cup — reading live standings, deriving which teams qualify on a draw, grounding every claim in real sources, and pricing it against the market to flag value bets.",
+      "A swarm of AI agents that finds underpriced draws at the 2026 World Cup, flagging value bets where a draw is mutually convenient.",
     tags: ["Python", "ClickHouse", "Gemini", "Tavily", "Prometheux", "FastAPI"],
     github: "https://github.com/soycarts/swarmtip",
     gradient: "from-orange-500 to-rose-500",
