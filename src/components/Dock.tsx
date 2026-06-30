@@ -25,9 +25,13 @@ const RANGE = 130;
 export function Dock() {
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
   const [isDark, setIsDark] = useState(false);
+  // Magnification only makes sense with a real pointer — on touch, synthetic
+  // mouse events would leave neighboring icons stuck oversized.
+  const [canHover, setCanHover] = useState(false);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
+    setCanHover(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
   }, []);
 
   function toggleTheme() {
@@ -81,8 +85,8 @@ export function Dock() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center">
       <nav
-        onMouseMove={handleMove}
-        onMouseLeave={handleLeave}
+        onMouseMove={canHover ? handleMove : undefined}
+        onMouseLeave={canHover ? handleLeave : undefined}
         aria-label="Dock"
         className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] items-end gap-0.5 rounded-2xl border border-black/10 bg-white/70 px-2 py-2 shadow-lg shadow-black/5 backdrop-blur-md sm:gap-2 sm:px-3 sm:py-2.5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/40"
       >
