@@ -25,6 +25,11 @@ export const socials: Social[] = [
   { label: "GitHub", href: "https://github.com/soycarts", handle: "@soycarts" },
   { label: "X", href: "https://x.com/soycarts", handle: "@soycarts" },
   {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/in/crtrc/",
+    handle: "in/crtrc",
+  },
+  {
     label: "Instagram",
     href: "https://instagram.com/soycarts",
     handle: "@soycarts",
