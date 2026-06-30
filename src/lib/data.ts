@@ -53,8 +53,7 @@ export const projects: Project[] = [
     description:
       "An AI-powered platform that turns open problems into rewarded bounties, matching contributors with work that advances real-world goals.",
     tags: ["Python", "LangChain", "React.js", "Supabase"],
-    website: "#",
-    github: "#",
+    website: "https://bountify.ai",
     gradient: "from-violet-500 to-indigo-500",
   },
   {
@@ -62,8 +61,7 @@ export const projects: Project[] = [
     description:
       "A flexible automation layer that wires together data sources and workflows so teams can ship pipelines without boilerplate.",
     tags: ["Python", "Airflow", "Snowflake", "DBT"],
-    website: "#",
-    github: "#",
+    github: "https://github.com/soycarts/zapflex",
     gradient: "from-emerald-500 to-teal-500",
   },
   {
@@ -71,8 +69,7 @@ export const projects: Project[] = [
     description:
       "A lightweight tipping and coordination tool for online communities, built for speed and low-friction payouts.",
     tags: ["JavaScript", "Node.js", "AWS", "Docker"],
-    website: "#",
-    github: "#",
+    github: "https://github.com/soycarts/swarmtip",
     gradient: "from-orange-500 to-rose-500",
   },
 ];

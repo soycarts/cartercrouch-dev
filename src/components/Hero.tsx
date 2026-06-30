@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { profile } from "@/lib/data";
+import { FileIcon } from "./icons";
 
 function useTypewriter(words: string[]) {
   const [text, setText] = useState("");
@@ -86,6 +87,15 @@ export function Hero() {
           >
             Get in touch
           </Link>
+          <a
+            href={profile.resumeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-5 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
+          >
+            <FileIcon className="h-4 w-4" />
+            Resume
+          </a>
         </div>
       </div>
     </section>
