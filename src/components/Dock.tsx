@@ -84,18 +84,18 @@ export function Dock() {
         onMouseMove={handleMove}
         onMouseLeave={handleLeave}
         aria-label="Dock"
-        className="pointer-events-auto flex items-end gap-2 rounded-2xl border border-black/10 bg-white/70 px-3 py-2.5 shadow-lg shadow-black/5 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-black/40"
+        className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] items-end gap-0.5 rounded-2xl border border-black/10 bg-white/70 px-2 py-2 shadow-lg shadow-black/5 backdrop-blur-md sm:gap-2 sm:px-3 sm:py-2.5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/40"
       >
         {items.map((item, i) => {
           const Icon = item.icon;
           const content = (
-            <Icon className="h-[22px] w-[22px] text-foreground/70 transition-colors group-hover:text-accent" />
+            <Icon className="h-5 w-5 text-foreground/70 transition-colors group-hover:text-accent sm:h-[22px] sm:w-[22px]" />
           );
           const className =
-            "group flex h-11 w-11 origin-bottom items-center justify-center rounded-xl transition-[transform,background-color] duration-150 ease-out will-change-transform hover:bg-black/[0.04] dark:hover:bg-white/10";
+            "group flex h-9 w-9 origin-bottom items-center justify-center rounded-xl transition-[transform,background-color] duration-150 ease-out will-change-transform hover:bg-black/[0.04] sm:h-11 sm:w-11 dark:hover:bg-white/10";
 
           return (
-            <div key={item.label} className="flex items-end gap-2">
+            <div key={item.label} className="flex items-end gap-0.5 sm:gap-2">
               {item.href ? (
                 <a
                   ref={(el) => {
