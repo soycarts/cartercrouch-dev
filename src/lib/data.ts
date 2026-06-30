@@ -56,24 +56,24 @@ export const projects: Project[] = [
   {
     name: "Bountify.ai",
     description:
-      "An AI-powered platform that turns open problems into rewarded bounties, matching contributors with work that advances real-world goals.",
-    tags: ["Python", "LangChain", "React.js", "Supabase"],
+      "Turns data gaps into bounties — a platform that converts missing or incomplete datasets into incentivized tasks, crowdsourcing the data collection and completion that teams need.",
+    tags: ["AI", "Data", "Web"],
     website: "https://bountify.ai",
     gradient: "from-violet-500 to-indigo-500",
   },
   {
     name: "Zapflex",
     description:
-      "A flexible automation layer that wires together data sources and workflows so teams can ship pipelines without boilerplate.",
-    tags: ["Python", "Airflow", "Snowflake", "DBT"],
+      "An autonomous home-battery flexibility company run by a swarm of AI agents. It optimizes home batteries against dynamic electricity tariffs, aggregates the fleet, and earns grid-services flexibility revenue — with the agents running the company end-to-end. Built for the Cursor “Hands Off” hackathon.",
+    tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
     gradient: "from-emerald-500 to-teal-500",
   },
   {
     name: "Swarmtip",
     description:
-      "A lightweight tipping and coordination tool for online communities, built for speed and low-friction payouts.",
-    tags: ["JavaScript", "Node.js", "AWS", "Docker"],
+      "A swarm of AI agents that finds underpriced draws at the 2026 World Cup — reading live standings, deriving which teams qualify on a draw, grounding every claim in real sources, and pricing it against the market to flag value bets.",
+    tags: ["Python", "ClickHouse", "Gemini", "Tavily", "Prometheux", "FastAPI"],
     github: "https://github.com/soycarts/swarmtip",
     gradient: "from-orange-500 to-rose-500",
   },
