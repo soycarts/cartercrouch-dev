@@ -43,38 +43,46 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="mx-auto flex min-h-[88vh] max-w-5xl flex-col justify-center px-6 py-24"
+      className="mx-auto max-w-3xl px-6 pt-24 pb-12 sm:pt-28"
     >
-      <div className="animate-fade-up">
-        <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-foreground/70">
-          <span className="h-2 w-2 rounded-full bg-accent" />
-          {profile.location}
-        </p>
+      <div className="animate-fade-up flex flex-col-reverse items-start gap-8 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
+            Hi, I&apos;m <span className="text-accent">Carter</span>
+          </h1>
+          <p className="mt-3 text-xl font-medium text-foreground/60 sm:text-2xl">
+            <span>{role}</span>
+            <span className="caret ml-0.5 font-light text-accent">|</span>
+          </p>
+          <p className="mt-3 inline-flex items-center gap-2 text-sm text-foreground/50">
+            <span className="h-2 w-2 rounded-full bg-accent" />
+            {profile.location}
+          </p>
+        </div>
 
-        <h1 className="text-5xl font-semibold tracking-tight sm:text-7xl">
-          Hi, I&apos;m{" "}
-          <span className="text-accent">{profile.name}</span>
-        </h1>
+        <div
+          aria-hidden
+          className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-sky-400 font-mono text-3xl font-semibold text-white shadow-lg shadow-accent/20 sm:h-32 sm:w-32"
+        >
+          {profile.initials}
+        </div>
+      </div>
 
-        <p className="mt-6 text-2xl font-medium text-foreground/80 sm:text-3xl">
-          <span>{role}</span>
-          <span className="caret ml-0.5 font-light text-accent">|</span>
-        </p>
-
-        <p className="mt-8 max-w-2xl text-lg leading-relaxed text-foreground/60">
+      <div className="mt-10">
+        <h2 className="mb-2 text-lg font-bold">About</h2>
+        <p className="max-w-2xl leading-relaxed text-foreground/60">
           {profile.bio}
         </p>
-
-        <div className="mt-10 flex flex-wrap gap-4">
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href="#projects"
-            className="rounded-lg bg-accent px-5 py-3 text-sm font-medium text-black transition hover:bg-accent/90"
+            className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 dark:text-black"
           >
             View my work
           </Link>
           <Link
             href="#contact"
-            className="rounded-lg border border-white/15 px-5 py-3 text-sm font-medium text-foreground/80 transition hover:border-accent/40 hover:text-foreground"
+            className="rounded-lg border border-black/15 px-5 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
           >
             Get in touch
           </Link>

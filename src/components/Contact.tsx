@@ -7,37 +7,37 @@ export function Contact() {
   return (
     <section
       id="contact"
-      className="mx-auto max-w-5xl px-6 py-24 text-center sm:py-32"
+      className="mx-auto max-w-3xl px-6 py-14 text-center sm:py-16"
     >
-      <p className="mb-2 font-mono text-sm text-accent">04 / Contact</p>
-      <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+      <p className="mb-1 font-mono text-xs text-accent">03 / Contact</p>
+      <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
         Let&apos;s build something
       </h2>
-      <p className="mx-auto mt-5 max-w-xl text-lg text-foreground/60">
+      <p className="mx-auto mt-4 max-w-xl text-foreground/60">
         Have an idea, a role, or just want to say hi? The fastest way to reach me
         is a DM on X — or drop me an email.
       </p>
 
-      <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         {x && (
           <a
             href={x.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg bg-accent px-6 py-3 text-sm font-medium text-black transition hover:bg-accent/90"
+            className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:opacity-90 dark:text-black"
           >
             DM me on X
           </a>
         )}
         <a
           href={`mailto:${profile.email}`}
-          className="rounded-lg border border-white/15 px-6 py-3 text-sm font-medium text-foreground/80 transition hover:border-accent/40 hover:text-foreground"
+          className="rounded-lg border border-black/15 px-6 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
         >
           {profile.email}
         </a>
       </div>
 
-      <div className="mt-12 flex items-center justify-center gap-5">
+      <div className="mt-8 flex items-center justify-center gap-5">
         {socials.map((s) => {
           const Icon = socialIcons[s.label];
           return (
@@ -49,7 +49,7 @@ export function Contact() {
               className="text-foreground/50 transition hover:text-accent"
               aria-label={s.label}
             >
-              {Icon ? <Icon className="h-6 w-6" /> : s.label}
+              {Icon ? <Icon className="h-5 w-5" /> : s.label}
             </a>
           );
         })}
@@ -60,8 +60,8 @@ export function Contact() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/5">
-      <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-foreground/40 sm:flex-row">
+    <footer className="border-t border-black/5 dark:border-white/5">
+      <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-2 px-6 pt-6 pb-28 text-sm text-foreground/40 sm:flex-row">
         <p>
           © {new Date().getFullYear()} {profile.name}
         </p>

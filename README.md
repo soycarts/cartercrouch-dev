@@ -2,7 +2,7 @@
 
 Personal portfolio for **Carter Crouch** — Analytics Engineer, Entrepreneur, Lifelong Learner.
 
-Built with [Next.js 16](https://nextjs.org) (App Router), [Tailwind CSS v4](https://tailwindcss.com), and TypeScript. Single-page, dark theme, fully static.
+Built with [Next.js 16](https://nextjs.org) (App Router), [Tailwind CSS v4](https://tailwindcss.com), and TypeScript. Single-page, light theme, fully static.
 
 ## Develop
 

@@ -4,7 +4,7 @@ import { Section } from "./Section";
 
 export function Projects() {
   return (
-    <Section id="projects" eyebrow="02 / Work" title="Things I've built">
+    <Section id="projects" eyebrow="01 / Work" title="Things I've built">
       <div className="grid gap-6 sm:grid-cols-2">
         {projects.map((p) => {
           const Wrapper = p.href ? "a" : "div";
@@ -18,7 +18,7 @@ export function Projects() {
                     rel: "noopener noreferrer",
                   }
                 : {})}
-              className="group relative flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-6 transition hover:border-accent/30 hover:bg-white/[0.04]"
+              className="group relative flex flex-col rounded-2xl border border-black/10 bg-black/[0.015] p-5 transition hover:border-accent/40 hover:bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
             >
               <div className="mb-3 flex items-start justify-between">
                 <h3 className="text-xl font-semibold text-foreground">
@@ -37,7 +37,7 @@ export function Projects() {
                 {p.tags.map((t) => (
                   <li
                     key={t}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-foreground/60"
+                    className="rounded-full border border-black/10 bg-black/[0.03] px-2.5 py-1 font-mono text-xs text-foreground/60 dark:border-white/10 dark:bg-white/5"
                   >
                     {t}
                   </li>
