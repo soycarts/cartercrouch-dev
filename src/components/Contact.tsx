@@ -15,7 +15,7 @@ export function Contact() {
       </h2>
       <p className="mx-auto mt-4 max-w-xl text-foreground/60">
         Have an idea, a role, or just want to say hi? The fastest way to reach me
-        is a DM on X — or drop me an email.
+        is a DM on X.
       </p>
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -29,12 +29,6 @@ export function Contact() {
             DM me on X
           </a>
         )}
-        <a
-          href={`mailto:${profile.email}`}
-          className="rounded-lg border border-black/15 px-6 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
-        >
-          {profile.email}
-        </a>
       </div>
 
       <div className="mt-8 flex items-center justify-center gap-5">

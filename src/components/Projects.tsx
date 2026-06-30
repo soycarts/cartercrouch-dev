@@ -1,51 +1,65 @@
 import { projects } from "@/lib/data";
-import { ArrowIcon } from "./icons";
+import { GitHubIcon, GlobeIcon } from "./icons";
 import { Section } from "./Section";
 
 export function Projects() {
   return (
     <Section id="projects" eyebrow="01 / Work" title="Things I've built">
-      <div className="grid gap-6 sm:grid-cols-2">
-        {projects.map((p) => {
-          const Wrapper = p.href ? "a" : "div";
-          return (
-            <Wrapper
-              key={p.name}
-              {...(p.href
-                ? {
-                    href: p.href,
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                  }
-                : {})}
-              className="group relative flex flex-col rounded-2xl border border-black/10 bg-black/[0.015] p-5 transition hover:border-accent/40 hover:bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+      <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2">
+        {projects.map((p) => (
+          <div key={p.name} className="group flex flex-col">
+            {/* Preview banner — swap the gradient for a real screenshot any time. */}
+            <div
+              className={`flex h-44 items-center justify-center rounded-xl bg-gradient-to-br ${p.gradient} shadow-sm transition group-hover:shadow-md`}
             >
-              <div className="mb-3 flex items-start justify-between">
-                <h3 className="text-xl font-semibold text-foreground">
-                  {p.name}
-                </h3>
-                {p.href && (
-                  <ArrowIcon className="h-5 w-5 text-foreground/40 transition group-hover:text-accent" />
-                )}
-              </div>
+              <span className="px-4 text-center text-2xl font-semibold tracking-tight text-white drop-shadow-sm">
+                {p.name}
+              </span>
+            </div>
 
-              <p className="flex-1 text-sm leading-relaxed text-foreground/60">
-                {p.description}
-              </p>
+            <h3 className="mt-4 text-lg font-bold">{p.name}</h3>
 
-              <ul className="mt-5 flex flex-wrap gap-2">
-                {p.tags.map((t) => (
-                  <li
-                    key={t}
-                    className="rounded-full border border-black/10 bg-black/[0.03] px-2.5 py-1 font-mono text-xs text-foreground/60 dark:border-white/10 dark:bg-white/5"
-                  >
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </Wrapper>
-          );
-        })}
+            <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground/60">
+              {p.description}
+            </p>
+
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {p.tags.map((t) => (
+                <li
+                  key={t}
+                  className="rounded-md bg-black/[0.05] px-2.5 py-1 text-xs text-foreground/70 dark:bg-white/10"
+                >
+                  {t}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              {p.website && (
+                <a
+                  href={p.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background transition hover:opacity-90"
+                >
+                  <GlobeIcon className="h-4 w-4" />
+                  Website
+                </a>
+              )}
+              {p.github && (
+                <a
+                  href={p.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3.5 py-2 text-xs font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
+                >
+                  <GitHubIcon className="h-4 w-4" />
+                  Github
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </Section>
   );

@@ -3,6 +3,7 @@ import { Projects } from "@/components/Projects";
 import { Skills } from "@/components/Skills";
 import { Contact, Footer } from "@/components/Contact";
 import { Dock } from "@/components/Dock";
+import { ResumeButton } from "@/components/ResumeButton";
 
 export default function Home() {
   return (
@@ -15,6 +16,7 @@ export default function Home() {
       </main>
       <Footer />
       <Dock />
+      <ResumeButton />
     </>
   );
 }
