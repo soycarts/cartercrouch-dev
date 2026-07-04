@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { projects } from "@/lib/data";
 import { GitHubIcon, GlobeIcon } from "./icons";
 import { Section } from "./Section";
@@ -8,14 +9,26 @@ export function Projects() {
       <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2">
         {projects.map((p) => (
           <div key={p.name} className="group flex flex-col">
-            {/* Preview banner — swap the gradient for a real screenshot any time. */}
-            <div
-              className={`flex h-44 items-center justify-center rounded-xl bg-gradient-to-br ${p.gradient} shadow-sm transition group-hover:shadow-md`}
-            >
-              <span className="px-4 text-center text-2xl font-semibold tracking-tight text-white drop-shadow-sm">
-                {p.name}
-              </span>
-            </div>
+            {/* Preview banner — screenshot when available, gradient fallback. */}
+            {p.image ? (
+              <div className="relative h-44 overflow-hidden rounded-xl border border-black/10 shadow-sm transition group-hover:shadow-md dark:border-white/10">
+                <Image
+                  src={p.image}
+                  alt={`Screenshot of ${p.name}`}
+                  fill
+                  sizes="(min-width: 640px) 50vw, 100vw"
+                  className="object-cover object-top"
+                />
+              </div>
+            ) : (
+              <div
+                className={`flex h-44 items-center justify-center rounded-xl bg-gradient-to-br ${p.gradient} shadow-sm transition group-hover:shadow-md`}
+              >
+                <span className="px-4 text-center text-2xl font-semibold tracking-tight text-white drop-shadow-sm">
+                  {p.name}
+                </span>
+              </div>
+            )}
 
             <h3 className="mt-4 text-lg font-bold">{p.name}</h3>
 

@@ -49,7 +49,9 @@ export type Project = {
   tags: string[];
   website?: string;
   github?: string;
-  // Tailwind gradient classes used for the card's preview banner.
+  // Screenshot shown in the card's preview banner (place files in public/projects).
+  image?: string;
+  // Tailwind gradient classes used as the banner fallback when there's no image.
   gradient: string;
 };
 
@@ -61,6 +63,7 @@ export const projects: Project[] = [
       "Turns data gaps into bounties — crowdsourcing the data teams are missing through incentivized tasks.",
     tags: ["AI", "Data", "Web"],
     website: "https://bountify.ai",
+    image: "/projects/bountify.jpg",
     gradient: "from-violet-500 to-indigo-500",
   },
   {
@@ -69,6 +72,7 @@ export const projects: Project[] = [
       "An autonomous home-battery flexibility company run by a swarm of AI agents — optimizing batteries against dynamic tariffs to earn grid-services revenue.",
     tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
+    image: "/projects/zapflex.jpg",
     gradient: "from-emerald-500 to-teal-500",
   },
   {
@@ -77,6 +81,7 @@ export const projects: Project[] = [
       "A swarm of AI agents that finds underpriced draws at the 2026 World Cup, flagging value bets where a draw is mutually convenient.",
     tags: ["Python", "ClickHouse", "Gemini", "Tavily", "Prometheux", "FastAPI"],
     github: "https://github.com/soycarts/swarmtip",
+    image: "/projects/swarmtip.jpg",
     gradient: "from-orange-500 to-rose-500",
   },
 ];
