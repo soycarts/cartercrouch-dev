@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { socials } from "@/lib/data";
 import {
   FolderIcon,
@@ -22,17 +22,47 @@ type DockItem = {
 const MAX_SCALE = 1.7;
 const RANGE = 130;
 
+// Tracks the .dark class on <html>; false during SSR, corrected on hydration.
+function useIsDark() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const observer = new MutationObserver(onChange);
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      return () => observer.disconnect();
+    },
+    () => document.documentElement.classList.contains("dark"),
+    () => false,
+  );
+}
+
+// Magnification only makes sense with a real pointer — on touch, synthetic
+// mouse events would leave neighboring icons stuck oversized. Also skipped
+// when the user prefers reduced motion.
+const HOVER_QUERIES = [
+  "(hover: hover) and (pointer: fine)",
+  "(prefers-reduced-motion: no-preference)",
+];
+
+function useCanHover() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const lists = HOVER_QUERIES.map((q) => window.matchMedia(q));
+      lists.forEach((mq) => mq.addEventListener("change", onChange));
+      return () =>
+        lists.forEach((mq) => mq.removeEventListener("change", onChange));
+    },
+    () => HOVER_QUERIES.every((q) => window.matchMedia(q).matches),
+    () => false,
+  );
+}
+
 export function Dock() {
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
-  const [isDark, setIsDark] = useState(false);
-  // Magnification only makes sense with a real pointer — on touch, synthetic
-  // mouse events would leave neighboring icons stuck oversized.
-  const [canHover, setCanHover] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-    setCanHover(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
-  }, []);
+  const isDark = useIsDark();
+  const canHover = useCanHover();
 
   function toggleTheme() {
     const root = document.documentElement;
@@ -41,7 +71,6 @@ export function Dock() {
     try {
       localStorage.setItem("theme", next ? "dark" : "light");
     } catch {}
-    setIsDark(next);
   }
 
   function handleMove(e: React.MouseEvent) {

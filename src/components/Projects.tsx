@@ -32,7 +32,7 @@ export function Projects() {
 
             <h3 className="mt-4 text-lg font-bold">{p.name}</h3>
 
-            <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground/60">
+            <p className="mt-1 text-sm leading-relaxed text-foreground/60">
               {p.description}
             </p>
 
@@ -67,7 +67,7 @@ export function Projects() {
                   className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3.5 py-2 text-xs font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
                 >
                   <GitHubIcon className="h-4 w-4" />
-                  Github
+                  GitHub
                 </a>
               )}
             </div>

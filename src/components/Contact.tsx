@@ -9,7 +9,7 @@ export function Contact() {
       id="contact"
       className="mx-auto max-w-3xl px-6 py-14 text-center sm:py-16"
     >
-      <p className="mb-1 font-mono text-xs text-accent">03 / Contact</p>
+      <p className="mb-1 font-mono text-xs text-accent">04 / Contact</p>
       <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
         Let&apos;s build something
       </h2>

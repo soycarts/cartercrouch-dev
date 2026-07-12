@@ -8,9 +8,12 @@ export const profile = {
   initials: "CC",
   // Hero avatar — place the image file at public/profile.jpeg.
   avatar: "/profile.jpeg",
-  // The hero cycles through these one at a time.
-  roles: ["Analytics Engineer", "Entrepreneur", "Lifelong Learner"],
+  role: "Analytics Engineer",
+  // The one-liner under the hero heading (also used for social share cards).
+  tagline: "Analytics engineer building AI agent systems.",
   location: "Los Angeles / London",
+  // Shown as a static tile in the live stats strip (no public API for this).
+  instagramViews: "10M+",
   // Shown in the About section.
   bio: "Hi, I'm Carter Crouch, passionate about building scalable systems that tangibly advance human flourishing. I work with Python, SQL, JavaScript, LangChain, DBT, and Snowflake, and I'm also a content creator with 10M+ Instagram views.",
   // Drop a PDF at public/resume.pdf, or point this at any hosted URL.
@@ -55,7 +58,6 @@ export type Project = {
   gradient: string;
 };
 
-// TODO: refine descriptions / links — these are placeholders Carter can edit.
 export const projects: Project[] = [
   {
     name: "Bountify.ai",
@@ -89,24 +91,11 @@ export const projects: Project[] = [
 export const skills: string[] = [
   "Python",
   "SQL",
-  "JavaScript",
-  "LangChain",
-  "DBT",
+  "dbt",
   "Snowflake",
+  "Airflow",
+  "LangChain",
+  "React / Next.js",
   "AWS",
   "GCP",
-  "React.js",
-  "Node.js",
-  "Git",
-  "Airflow",
-  "Excel",
-  "Jupyter",
-  "Looker",
-  "PowerBI",
-  "QuickSight",
-  "Tableau",
-  "Supabase",
-  "Docker",
-  "VS Code",
-  "Salesforce",
 ];

@@ -3,7 +3,7 @@ import { Section } from "./Section";
 
 export function Skills() {
   return (
-    <Section id="skills" eyebrow="02 / Stack" title="Skills & technologies">
+    <Section id="skills" eyebrow="03 / Stack" title="Skills & technologies">
       <ul className="flex flex-wrap gap-2.5">
         {skills.map((s) => (
           <li

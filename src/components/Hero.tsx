@@ -1,47 +1,9 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { profile } from "@/lib/data";
 import { FileIcon } from "./icons";
 
-function useTypewriter(words: string[]) {
-  const [text, setText] = useState("");
-  const [index, setIndex] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    const current = words[index % words.length];
-    let timeout: ReturnType<typeof setTimeout>;
-
-    if (!deleting && text === current) {
-      // Pause on the full word before deleting.
-      timeout = setTimeout(() => setDeleting(true), 1600);
-    } else if (deleting && text === "") {
-      setDeleting(false);
-      setIndex((i) => (i + 1) % words.length);
-    } else {
-      timeout = setTimeout(
-        () => {
-          const next = deleting
-            ? current.slice(0, text.length - 1)
-            : current.slice(0, text.length + 1);
-          setText(next);
-        },
-        deleting ? 45 : 90,
-      );
-    }
-
-    return () => clearTimeout(timeout);
-  }, [text, deleting, index, words]);
-
-  return text;
-}
-
 export function Hero() {
-  const role = useTypewriter(profile.roles);
-
   return (
     <section
       id="top"
@@ -53,8 +15,7 @@ export function Hero() {
             Hi, I&apos;m <span className="text-accent">Carter</span>
           </h1>
           <p className="mt-3 text-xl font-medium text-foreground/60 sm:text-2xl">
-            <span>{role}</span>
-            <span className="caret ml-0.5 font-light text-accent">|</span>
+            {profile.tagline}
           </p>
           <p className="mt-3 inline-flex items-center gap-2 text-sm text-foreground/50">
             <span className="h-2 w-2 rounded-full bg-accent" />
