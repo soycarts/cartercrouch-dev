@@ -1,5 +1,6 @@
 import { profile } from "@/lib/data";
 import { getSubstackPosts } from "@/lib/substack";
+import { Section } from "./Section";
 
 // The site's signature: a small live dashboard about its owner. Every tile
 // degrades independently — a failed fetch or missing env var hides that tile
@@ -118,7 +119,7 @@ function Sparkline({ data }: { data: number[] }) {
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="h-7 w-[88px] text-accent"
+      className="h-7 w-[88px] text-ink-muted"
       fill="none"
       aria-hidden
     >
@@ -151,30 +152,42 @@ export async function LiveStats() {
   );
 
   return (
-    <section id="live" className="mx-auto max-w-3xl px-6 pb-10 sm:pb-12">
-      <div className="mb-4 flex items-center gap-2.5">
-        <p className="font-mono text-xs text-accent">00 / Live</p>
-        <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-accent" />
-        <p className="font-mono text-xs text-foreground/40">
-          refreshes hourly
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {tiles.map((tile) => {
+    <Section
+      id="live"
+      eyebrow="00 / Live"
+      meta={
+        <span className="inline-flex items-center gap-2">
+          <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-accent" />
+          Hourly
+        </span>
+      }
+    >
+      {/* A ledger band, not tiles: columns divided by hairlines, no fills. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3">
+        {tiles.map((tile, i) => {
           const inner = (
             <>
               <div className="flex items-end justify-between gap-2">
-                <span className="font-mono text-2xl text-foreground/90">
+                <span className="font-mono text-[1.7rem] leading-none tabular-nums">
                   {tile.value}
                 </span>
                 {tile.sparkline && <Sparkline data={tile.sparkline} />}
               </div>
-              <p className="mt-1.5 text-xs text-foreground/50">{tile.label}</p>
+              <p className="mt-2.5 text-[0.78rem] leading-snug text-ink-muted">
+                {tile.label}
+              </p>
             </>
           );
-          const className =
-            "rounded-xl border border-black/10 bg-black/[0.02] p-4 transition dark:border-white/10 dark:bg-white/[0.03]";
+
+          // First column in each row sits flush left; the rest carry a rule.
+          const cell = [
+            "py-5 pr-5",
+            i % 2 === 0 ? "" : "border-l border-rule pl-5",
+            "sm:pr-6",
+            i % 3 === 0
+              ? "sm:border-l-0 sm:pl-0"
+              : "sm:border-l sm:border-rule sm:pl-6",
+          ].join(" ");
 
           return tile.href ? (
             <a
@@ -182,17 +195,17 @@ export async function LiveStats() {
               href={tile.href}
               target="_blank"
               rel="noopener noreferrer"
-              className={`${className} hover:border-accent/40`}
+              className={`${cell} transition-colors hover:text-accent`}
             >
               {inner}
             </a>
           ) : (
-            <div key={tile.label} className={className}>
+            <div key={tile.label} className={cell}>
               {inner}
             </div>
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }

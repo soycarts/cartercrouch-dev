@@ -3,14 +3,17 @@ import { Section } from "./Section";
 
 export function Skills() {
   return (
-    <Section id="skills" eyebrow="03 / Stack" title="Skills & technologies">
-      <ul className="flex flex-wrap gap-2.5">
-        {skills.map((s) => (
+    <Section id="skills" eyebrow="03 / Stack">
+      <ul className="grid border-t border-rule sm:grid-cols-2 lg:grid-cols-3">
+        {skills.map((s, i) => (
           <li
             key={s}
-            className="rounded-lg border border-black/10 bg-black/[0.02] px-3.5 py-1.5 text-sm text-foreground/75 transition hover:border-accent/40 hover:text-foreground dark:border-white/10 dark:bg-white/[0.03]"
+            className="flex items-baseline gap-3 border-b border-rule py-3 pr-6"
           >
-            {s}
+            <span className="kicker text-ink-muted tabular-nums">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="text-[0.95rem]">{s}</span>
           </li>
         ))}
       </ul>

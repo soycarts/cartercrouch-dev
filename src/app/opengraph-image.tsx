@@ -5,6 +5,13 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = `${profile.name} — ${profile.tagline}`;
 
+// Mirrors the site's paper palette. next/og has no access to the CSS tokens,
+// so these values are duplicated from globals.css by hand — keep them in sync.
+const PAPER = "#fcfbf9";
+const INK = "#171614";
+const INK_MUTED = "#7a736e";
+const RULE = "#e2dfda";
+
 export default function OpenGraphImage() {
   return new ImageResponse(
     (
@@ -16,42 +23,48 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 80,
-          background:
-            "radial-gradient(48rem 48rem at 85% -10%, rgba(52, 211, 153, 0.14), transparent 60%), #0a0a0b",
-          color: "#ededed",
-          fontFamily: "sans-serif",
+          background: PAPER,
+          color: INK,
+          fontFamily: "Georgia, serif",
         }}
       >
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: 14,
-            fontSize: 28,
-            color: "#a1a1aa",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            paddingBottom: 28,
+            borderBottom: `1px solid ${RULE}`,
+            fontSize: 26,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: INK_MUTED,
           }}
         >
-          <div
-            style={{
-              width: 16,
-              height: 16,
-              borderRadius: 9999,
-              background: "#34d399",
-            }}
-          />
-          cartercrouch.dev
+          <div style={{ display: "flex", color: INK }}>CC</div>
+          <div style={{ display: "flex" }}>cartercrouch.dev</div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ fontSize: 92, fontWeight: 700, letterSpacing: -3 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
+          <div style={{ fontSize: 96, letterSpacing: -2, lineHeight: 1 }}>
             {profile.name}
           </div>
-          <div style={{ fontSize: 40, color: "#a1a1aa" }}>
+          <div style={{ fontSize: 40, color: INK_MUTED, lineHeight: 1.2 }}>
             {profile.tagline}
           </div>
         </div>
 
-        <div style={{ display: "flex", fontSize: 28, color: "#71717a" }}>
+        <div
+          style={{
+            display: "flex",
+            paddingTop: 28,
+            borderTop: `1px solid ${RULE}`,
+            fontSize: 26,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: INK_MUTED,
+          }}
+        >
           {profile.location}
         </div>
       </div>

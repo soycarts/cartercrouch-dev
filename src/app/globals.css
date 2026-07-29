@@ -1,69 +1,207 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* ---------------------------------------------------------------------------
+   Editorial design system. One committed light "paper" surface — no dark mode.
+   The look comes from three things: warm ink on warm paper, hairline rules
+   instead of cards, and a left rail that carries every section's label.
+   --------------------------------------------------------------------------- */
 
-/* Light theme (default) */
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0b;
-  --accent: #059669;
+  --paper: #fcfbf9;
+  --paper-raised: #ffffff;
+  --ink: #171614;
+  --ink-soft: #4a4441;
+  --ink-muted: #7a736e;
+  --rule: #e2dfda;
+  --rule-strong: #171614;
+  --accent: #0a6b53;
+
+  /* Rail grid: section label left, content right. */
+  --rail: 150px;
+  --gutter: 54px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
   color-scheme: light;
 }
 
-/* Dark theme (toggled via .dark on <html>) */
-.dark {
-  --background: #0a0a0b;
-  --foreground: #ededed;
-  --accent: #34d399;
-  color-scheme: dark;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader);
+  --font-mono: var(--font-plex-mono);
 }
 
-html {
-  scroll-behavior: smooth;
+/* Element defaults live in @layer base so the component classes below — and
+   Tailwind's utilities — can override them without !important. */
+@layer base {
+  html {
+    font-size: 18px;
+    scroll-behavior: smooth;
+    background: var(--paper);
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fine grain over the whole page. Barely visible on its own, but it's what
+     stops a flat off-white field from reading as "unstyled". */
+  body::before {
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.72'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    mix-blend-mode: multiply;
+  }
+
+  /* Nothing on this page is bold — weight-400 serif at size is the whole point. */
+  h1,
+  h2,
+  h3 {
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  ::selection {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  background-image: radial-gradient(
-      48rem 48rem at 85% -10%,
-      rgba(5, 150, 105, 0.07),
-      transparent 60%
-    ),
-    radial-gradient(
-      40rem 40rem at -5% 10%,
-      rgba(56, 189, 248, 0.05),
-      transparent 60%
-    );
-  background-attachment: fixed;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
+@layer components {
+  /* Page measure. Deliberately wide — the rail needs room to sit outside
+     the text column. */
+  .shell {
+    width: min(1180px, calc(100% - 4rem));
+    margin-inline: auto;
+  }
+
+  /* The structural motif: label rail + content. Collapses to a stack on
+     narrow viewports with the label riding above its content. */
+  .rail {
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    gap: var(--gutter);
+  }
+
+  /* Mono label used for section numbers, dates, captions, and links. */
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1.45;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Links are typographic, not buttons. The arrow comes from ::after so the
+     variant classes below can swap direction without extra markup. */
+  .link-mono {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 2px;
+    transition:
+      color 180ms var(--ease-out),
+      border-color 180ms var(--ease-out);
+  }
+
+  .link-mono::after {
+    content: "↗";
+    transition: transform 180ms var(--ease-out);
+  }
+
+  .link-mono--down::after {
+    content: "↓";
+  }
+
+  .link-mono--in::after {
+    content: "→";
+  }
+
+  .link-mono:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .link-mono:hover::after {
+    transform: translate(2px, -2px);
+  }
+
+  .link-mono--down:hover::after {
+    transform: translateY(2px);
+  }
+
+  .link-mono--in:hover::after {
+    transform: translateX(3px);
+  }
+
+  /* Inline links inside body copy keep the rule underneath rather than
+     changing colour. */
+  .link-text {
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 180ms var(--ease-out);
+  }
+
+  .link-text:hover {
+    text-decoration-color: var(--accent);
+  }
 }
 
-.dark body {
-  background-image: radial-gradient(
-      48rem 48rem at 85% -10%,
-      rgba(52, 211, 153, 0.08),
-      transparent 60%
-    ),
-    radial-gradient(
-      40rem 40rem at -5% 10%,
-      rgba(56, 189, 248, 0.06),
-      transparent 60%
-    );
-}
+@media (max-width: 900px) {
+  :root {
+    --gutter: 20px;
+  }
 
-::selection {
-  background: rgba(5, 150, 105, 0.2);
+  .shell {
+    width: calc(100% - 2.5rem);
+  }
+
+  .rail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
 }
 
 @keyframes fade-up {
@@ -104,5 +242,9 @@ body {
   .animate-fade-up,
   .animate-pulse-dot {
     animation: none;
+  }
+
+  .link-mono::after {
+    transition: none;
   }
 }

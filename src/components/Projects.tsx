@@ -1,77 +1,68 @@
 import Image from "next/image";
 import { projects } from "@/lib/data";
-import { GitHubIcon, GlobeIcon } from "./icons";
 import { Section } from "./Section";
 
 export function Projects() {
   return (
-    <Section id="projects" eyebrow="01 / Work" title="Things I've built">
-      <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2">
+    <Section id="projects" eyebrow="01 / Work">
+      <div className="border-t border-rule-strong">
         {projects.map((p) => (
-          <div key={p.name} className="group flex flex-col">
-            {/* Preview banner — screenshot when available, gradient fallback. */}
-            {p.image ? (
-              <div className="relative h-44 overflow-hidden rounded-xl border border-black/10 shadow-sm transition group-hover:shadow-md dark:border-white/10">
-                <Image
-                  src={p.image}
-                  alt={`Screenshot of ${p.name}`}
-                  fill
-                  sizes="(min-width: 640px) 50vw, 100vw"
-                  className="object-cover object-top"
-                />
-              </div>
-            ) : (
-              <div
-                className={`flex h-44 items-center justify-center rounded-xl bg-gradient-to-br ${p.gradient} shadow-sm transition group-hover:shadow-md`}
-              >
-                <span className="px-4 text-center text-2xl font-semibold tracking-tight text-white drop-shadow-sm">
-                  {p.name}
-                </span>
-              </div>
-            )}
-
-            <h3 className="mt-4 text-lg font-bold">{p.name}</h3>
-
-            <p className="mt-1 text-sm leading-relaxed text-foreground/60">
-              {p.description}
-            </p>
-
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {p.tags.map((t) => (
-                <li
-                  key={t}
-                  className="rounded-md bg-black/[0.05] px-2.5 py-1 text-xs text-foreground/70 dark:bg-white/10"
-                >
-                  {t}
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              {p.website && (
-                <a
-                  href={p.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg bg-foreground px-3.5 py-2 text-xs font-medium text-background transition hover:opacity-90"
-                >
-                  <GlobeIcon className="h-4 w-4" />
-                  Website
-                </a>
-              )}
-              {p.github && (
-                <a
-                  href={p.github}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3.5 py-2 text-xs font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
-                >
-                  <GitHubIcon className="h-4 w-4" />
-                  GitHub
-                </a>
-              )}
+          <article
+            key={p.name}
+            className="grid gap-x-8 gap-y-4 border-b border-rule py-8 md:grid-cols-[minmax(0,180px)_minmax(0,1fr)]"
+          >
+            <div>
+              <h3 className="text-[1.45rem]">{p.name}</h3>
+              <p className="kicker mt-2 text-ink-muted">
+                {p.tags.join(" · ")}
+              </p>
             </div>
-          </div>
+
+            <div className="min-w-0">
+              <p className="max-w-[58ch] text-[0.92rem] leading-relaxed text-ink-soft">
+                {p.description}
+              </p>
+
+              {p.image ? (
+                <div className="relative mt-5 aspect-[16/7] border border-rule bg-paper-raised">
+                  <Image
+                    src={p.image}
+                    alt={`Screenshot of ${p.name}`}
+                    fill
+                    sizes="(min-width: 768px) 640px, 100vw"
+                    className="object-cover object-top"
+                  />
+                </div>
+              ) : (
+                <div className="mt-5 flex aspect-[16/7] items-center justify-center border border-rule bg-paper-raised">
+                  <span className="text-[1.6rem] text-ink-muted">{p.name}</span>
+                </div>
+              )}
+
+              <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3">
+                {p.website && (
+                  <a
+                    href={p.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link-mono"
+                  >
+                    Website
+                  </a>
+                )}
+                {p.github && (
+                  <a
+                    href={p.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link-mono"
+                  >
+                    GitHub
+                  </a>
+                )}
+              </div>
+            </div>
+          </article>
         ))}
       </div>
     </Section>

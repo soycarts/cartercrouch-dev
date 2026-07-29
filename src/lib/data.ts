@@ -46,16 +46,27 @@ export const socials: Social[] = [
   },
 ];
 
+// The dated "Now" strip. Keep `updated` current whenever the items change —
+// a stale Now block is worse than none.
+export const now = {
+  // ISO year-month; rendered as e.g. "July 2026".
+  updated: "2026-07",
+  lede: "TODO — one or two sentences on what you're focused on right now.",
+  items: [
+    { text: "TODO — what's happening with Zapflex.", href: "https://github.com/soycarts/zapflex" },
+    { text: "TODO — what's happening with Bountify.ai.", href: "https://bountify.ai" },
+    { text: "TODO — anything else worth saying you're doing." },
+  ] as { text: string; href?: string }[],
+};
+
 export type Project = {
   name: string;
   description: string;
   tags: string[];
   website?: string;
   github?: string;
-  // Screenshot shown in the card's preview banner (place files in public/projects).
+  // Screenshot shown alongside the entry (place files in public/projects).
   image?: string;
-  // Tailwind gradient classes used as the banner fallback when there's no image.
-  gradient: string;
 };
 
 export const projects: Project[] = [
@@ -66,7 +77,6 @@ export const projects: Project[] = [
     tags: ["AI", "Data", "Web"],
     website: "https://bountify.ai",
     image: "/projects/bountify.jpg",
-    gradient: "from-violet-500 to-indigo-500",
   },
   {
     name: "Zapflex",
@@ -75,7 +85,6 @@ export const projects: Project[] = [
     tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
     image: "/projects/zapflex.jpg",
-    gradient: "from-emerald-500 to-teal-500",
   },
   {
     name: "Swarmtip",
@@ -84,7 +93,6 @@ export const projects: Project[] = [
     tags: ["Python", "ClickHouse", "Gemini", "Tavily", "Prometheux", "FastAPI"],
     github: "https://github.com/soycarts/swarmtip",
     image: "/projects/swarmtip.jpg",
-    gradient: "from-orange-500 to-rose-500",
   },
 ];
 

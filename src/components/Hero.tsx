@@ -1,66 +1,74 @@
 import Link from "next/link";
 import Image from "next/image";
-import { profile } from "@/lib/data";
-import { FileIcon } from "./icons";
+import { profile, socials } from "@/lib/data";
 
 export function Hero() {
+  const x = socials.find((s) => s.label === "X");
+
   return (
-    <section
-      id="top"
-      className="mx-auto max-w-3xl px-6 pt-24 pb-12 sm:pt-28"
-    >
-      <div className="animate-fade-up flex flex-col-reverse items-start gap-8 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
-            Hi, I&apos;m <span className="text-accent">Carter</span>
+    <section id="top" className="shell">
+      {/* Stacked on mobile the name leads and the portrait closes the block;
+          side by side from sm up. */}
+      <div className="animate-fade-up flex flex-col gap-10 pt-16 pb-20 sm:flex-row sm:items-start sm:justify-between sm:gap-16 sm:pt-24 sm:pb-28">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[3rem] leading-[0.95] sm:text-[4.2rem]">
+            {profile.name}
           </h1>
-          <p className="mt-3 text-xl font-medium text-foreground/60 sm:text-2xl">
+
+          <p className="mt-6 max-w-[36ch] text-[1.3rem] leading-tight text-ink-soft sm:text-[1.55rem]">
             {profile.tagline}
           </p>
-          <p className="mt-3 inline-flex items-center gap-2 text-sm text-foreground/50">
-            <span className="h-2 w-2 rounded-full bg-accent" />
+
+          <p className="kicker mt-5 inline-flex items-center gap-2.5 text-ink-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             {profile.location}
           </p>
+
+          {/* The bio, verbatim, set as a margin note rather than a body block. */}
+          <div className="mt-9 max-w-[62ch] border-l border-rule pl-6">
+            <p className="text-[0.86rem] leading-relaxed text-ink-soft">
+              {profile.bio}
+            </p>
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-4">
+            <Link href="#projects" className="link-mono link-mono--down">
+              View work
+            </Link>
+            {x && (
+              <a
+                href={x.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-mono"
+              >
+                DM on X
+              </a>
+            )}
+            <a
+              href={profile.resumeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-mono"
+            >
+              Résumé
+            </a>
+          </div>
         </div>
 
-        <Image
-          src={profile.avatar}
-          alt={profile.name}
-          width={256}
-          height={256}
-          priority
-          className="h-28 w-28 shrink-0 rounded-full object-cover shadow-lg shadow-accent/20 ring-1 ring-black/5 sm:h-32 sm:w-32 dark:ring-white/10"
-        />
-      </div>
-
-      <div className="mt-10">
-        <h2 className="mb-2 text-lg font-bold">About</h2>
-        <p className="max-w-2xl leading-relaxed text-foreground/60">
-          {profile.bio}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="#projects"
-            className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 dark:text-black"
-          >
-            View my work
-          </Link>
-          <Link
-            href="#contact"
-            className="rounded-lg border border-black/15 px-5 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
-          >
-            Get in touch
-          </Link>
-          <a
-            href={profile.resumeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-5 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-accent/50 hover:text-foreground dark:border-white/15"
-          >
-            <FileIcon className="h-4 w-4" />
-            Resume
-          </a>
-        </div>
+        <figure className="shrink-0">
+          <Image
+            src={profile.avatar}
+            alt={profile.name}
+            width={256}
+            height={256}
+            priority
+            className="h-32 w-32 border border-rule bg-paper-raised object-cover sm:h-44 sm:w-44"
+          />
+          <figcaption className="kicker mt-2.5 text-ink-muted">
+            {profile.role}
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
