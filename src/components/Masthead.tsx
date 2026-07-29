@@ -17,7 +17,7 @@ export function Masthead() {
 
   return (
     <header className="shell">
-      <div className="flex items-start justify-between gap-8 border-b border-rule pt-8 pb-6">
+      <div className="flex items-start justify-between gap-8 border-b border-rule pt-6 pb-5">
         <Link
           href="#top"
           aria-label="Back to top"

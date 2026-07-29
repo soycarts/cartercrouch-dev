@@ -14,7 +14,7 @@ export async function Writing() {
   const [feature, ...rest] = posts;
 
   return (
-    <Section id="writing" eyebrow="02 / Writing" meta="Substack">
+    <Section id="writing" eyebrow="Writing" meta="Substack">
       <div className="border-t border-rule-strong">
         {/* The latest post gets the full excerpt; the rest are index rows. */}
         <a
