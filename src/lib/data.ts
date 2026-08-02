@@ -73,15 +73,23 @@ export const projects: Project[] = [
   {
     name: "Bountify.ai",
     description:
-      "Turns data gaps into bounties — crowdsourcing the data teams are missing through incentivized tasks.",
+      "Turn data gaps into bounties — crowdsource the data your lab or agentic AI company is missing through incentivised tasks.",
     tags: ["AI", "Data", "Web"],
     website: "https://bountify.ai",
     image: "/projects/bountify.jpg",
   },
   {
+    name: "Jobmaxxing.ai",
+    description:
+      "A job tracking superapp — drag applications from prospect to offer, with AI research briefs, readiness prep, and application drafts.",
+    tags: ["React", "FastAPI", "dbt", "DuckDB", "Anthropic", "Chrome Extension"],
+    website: "https://jobmaxxing.ai",
+    image: "/projects/jobmaxxing.jpg",
+  },
+  {
     name: "Samefacts.co.uk",
     description:
-      "Turns a claimant's everyday diary into a descriptor-matched PIP case, then coaches them through the assessment out loud.",
+      "Most people that apply for PIP are denied at first, two-thirds of those that appeal win, and 91% of those appeals win with nothing new.",
     tags: ["Next.js", "Anthropic", "ElevenLabs", "dbt", "DuckDB", "Supabase"],
     website: "https://samefacts.co.uk",
     image: "/projects/samefacts.jpg",
@@ -89,7 +97,7 @@ export const projects: Project[] = [
   {
     name: "Gameover.fyi",
     description:
-      "A vision model watches robot-combat footage and turns it into a retro arcade fight — health bars, hit markers, K.O.",
+      "A next-gen overlay for BattleBots episodes: featuring vision model-driven hit breakdowns, fan predictions from r/battlebots, and social chatter.",
     tags: ["Python", "Anthropic", "Bright Data", "ElevenLabs", "Vanilla JS"],
     website: "https://gameover.fyi",
     github: "https://github.com/soycarts/gameover",
@@ -98,7 +106,7 @@ export const projects: Project[] = [
   {
     name: "Zapflex",
     description:
-      "An autonomous home-battery flexibility company run by a swarm of AI agents — optimizing batteries against dynamic tariffs to earn grid-services revenue.",
+      "A proof-of-concept autonomous home-battery flexibility company run by AI agents. Households predict their own usage, with predictions gamified.",
     tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
     image: "/projects/zapflex.jpg",
@@ -106,7 +114,7 @@ export const projects: Project[] = [
   {
     name: "Swarmtip",
     description:
-      "A swarm of AI agents that finds underpriced draws at the 2026 World Cup, flagging value bets where a draw is mutually convenient.",
+      "AI agents pull live match updates and betting odds for the 2026 World Cup, identifying opportunities where teams are incentivised to draw.",
     tags: ["Python", "ClickHouse", "Gemini", "Tavily", "Prometheux", "FastAPI"],
     github: "https://github.com/soycarts/swarmtip",
     image: "/projects/swarmtip.jpg",
