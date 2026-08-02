@@ -28,7 +28,9 @@ export function Projects() {
 
             <h3 className="mt-4 text-[1.2rem]">{p.name}</h3>
 
-            <p className="kicker mt-1.5 text-ink-muted">{p.tags.join(" · ")}</p>
+            {p.tags.length > 0 && (
+              <p className="kicker mt-1.5 text-ink-muted">{p.tags.join(" · ")}</p>
+            )}
 
             <p className="mt-2.5 text-[0.85rem] leading-relaxed text-ink-soft">
               {p.description}
