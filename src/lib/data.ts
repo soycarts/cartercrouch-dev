@@ -91,7 +91,7 @@ export const projects: Project[] = [
   {
     name: "Samefacts.co.uk",
     description:
-      "Most PIP claims are denied at first — yet 91% of winning appeals present nothing new.",
+      "Most PIP claims are denied at first — yet 91% of winning appeals present nothing new. Same facts. Stronger case.",
     // Run as a business — stack kept proprietary.
     tags: [],
     website: "https://samefacts.co.uk",
