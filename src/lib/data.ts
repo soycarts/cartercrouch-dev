@@ -101,7 +101,7 @@ export const projects: Project[] = [
     name: "Gameover.fyi",
     description:
       "A next-gen BattleBots overlay: vision-model hit breakdowns, fan predictions, social chatter.",
-    tags: ["Python", "Anthropic", "Bright Data", "ElevenLabs", "Vanilla JS"],
+    tags: ["Python", "Claude", "ChatGPT", "Bright Data", "ElevenLabs", "Vanilla JS"],
     website: "https://gameover.fyi",
     github: "https://github.com/soycarts/gameover",
     image: "/projects/gameover.jpg",
@@ -110,7 +110,7 @@ export const projects: Project[] = [
     name: "Zapflex",
     description:
       "An autonomous home-battery flexibility company run by AI agents, with gamified usage predictions.",
-    tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
+    tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Claude", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
     image: "/projects/zapflex.jpg",
   },
