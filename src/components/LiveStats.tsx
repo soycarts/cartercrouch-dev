@@ -22,9 +22,12 @@ async function getGithubTile(): Promise<Tile | null> {
     const from = new Date(
       Date.now() - WEEKS_BACK * 7 * 24 * 60 * 60 * 1000,
     ).toISOString();
+    // Without `to`, GitHub defaults the range to `from + 1 year`, padding the
+    // calendar with all-zero future weeks.
+    const to = new Date().toISOString();
     const query = `query {
       user(login: "${GITHUB_USER}") {
-        contributionsCollection(from: "${from}") {
+        contributionsCollection(from: "${from}", to: "${to}") {
           contributionCalendar {
             totalContributions
             weeks { contributionDays { contributionCount } }
@@ -51,7 +54,7 @@ async function getGithubTile(): Promise<Tile | null> {
         w.contributionDays.reduce((sum, d) => sum + d.contributionCount, 0),
     );
     return {
-      value: String(calendar.totalContributions),
+      value: calendar.totalContributions.toLocaleString("en-US"),
       label: `GitHub contributions · ${WEEKS_BACK} wks`,
       href: `https://github.com/${GITHUB_USER}`,
       sparkline: weeks,
