@@ -30,12 +30,12 @@ export function Projects() {
 
             <p className="kicker mt-1.5 text-ink-muted">{p.tags.join(" · ")}</p>
 
-            <p className="mt-2.5 line-clamp-2 text-[0.85rem] leading-relaxed text-ink-soft">
+            <p className="mt-2.5 text-[0.85rem] leading-relaxed text-ink-soft">
               {p.description}
             </p>
 
             {/* mt-auto pins the links to the card's bottom edge so they line
-                up across a row even when descriptions clamp to different
+                up across a row even when descriptions wrap to different
                 line counts. */}
             <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-3 pt-4">
               {p.website && (
