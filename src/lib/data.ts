@@ -73,31 +73,34 @@ export const projects: Project[] = [
   {
     name: "Bountify.ai",
     description:
-      "Turn data gaps into bounties — crowdsource the data your lab or agentic AI company is missing through incentivised tasks.",
-    tags: ["AI", "Data", "Web"],
+      "Turn data gaps into bounties — crowdsource the data your AI lab is missing via incentivised tasks.",
+    // Run as a business — stack kept proprietary.
+    tags: [],
     website: "https://bountify.ai",
     image: "/projects/bountify.jpg",
   },
   {
     name: "Jobmaxxing.ai",
     description:
-      "A job tracking superapp — drag applications from prospect to offer, with AI research briefs, readiness prep, and application drafts.",
-    tags: ["React", "FastAPI", "dbt", "DuckDB", "Anthropic", "Chrome Extension"],
+      "A job tracking superapp — prospect-to-offer board, AI research briefs, and application drafts.",
+    // Run as a business — stack kept proprietary.
+    tags: [],
     website: "https://jobmaxxing.ai",
     image: "/projects/jobmaxxing.jpg",
   },
   {
     name: "Samefacts.co.uk",
     description:
-      "Most people that apply for PIP are denied at first, two-thirds of those that appeal win, and 91% of those appeals win with nothing new.",
-    tags: ["Next.js", "Anthropic", "ElevenLabs", "dbt", "DuckDB", "Supabase"],
+      "Most PIP claims are denied at first — yet 91% of winning appeals present nothing new.",
+    // Run as a business — stack kept proprietary.
+    tags: [],
     website: "https://samefacts.co.uk",
     image: "/projects/samefacts.jpg",
   },
   {
     name: "Gameover.fyi",
     description:
-      "A next-gen overlay for BattleBots episodes: featuring vision model-driven hit breakdowns, fan predictions from r/battlebots, and social chatter.",
+      "A next-gen BattleBots overlay: vision-model hit breakdowns, fan predictions, social chatter.",
     tags: ["Python", "Anthropic", "Bright Data", "ElevenLabs", "Vanilla JS"],
     website: "https://gameover.fyi",
     github: "https://github.com/soycarts/gameover",
@@ -106,7 +109,7 @@ export const projects: Project[] = [
   {
     name: "Zapflex",
     description:
-      "A proof-of-concept autonomous home-battery flexibility company run by AI agents. Households predict their own usage, with predictions gamified.",
+      "An autonomous home-battery flexibility company run by AI agents, with gamified usage predictions.",
     tags: ["Python", "DuckDB", "Supabase", "dbt", "Modal", "Anthropic", "Next.js"],
     github: "https://github.com/soycarts/zapflex",
     image: "/projects/zapflex.jpg",
@@ -114,7 +117,7 @@ export const projects: Project[] = [
   {
     name: "Swarmtip",
     description:
-      "AI agents pull live match updates and betting odds for the 2026 World Cup, identifying opportunities where teams are incentivised to draw.",
+      "AI agents scan 2026 World Cup odds for matches where both teams are incentivised to draw.",
     tags: ["Python", "ClickHouse", "Gemini", "Tavily", "Prometheux", "FastAPI"],
     github: "https://github.com/soycarts/swarmtip",
     image: "/projects/swarmtip.jpg",
