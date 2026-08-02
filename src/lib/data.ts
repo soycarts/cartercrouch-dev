@@ -79,6 +79,23 @@ export const projects: Project[] = [
     image: "/projects/bountify.jpg",
   },
   {
+    name: "Samefacts.co.uk",
+    description:
+      "Turns a claimant's everyday diary into a descriptor-matched PIP case, then coaches them through the assessment out loud.",
+    tags: ["Next.js", "Anthropic", "ElevenLabs", "dbt", "DuckDB", "Supabase"],
+    website: "https://samefacts.co.uk",
+    image: "/projects/samefacts.jpg",
+  },
+  {
+    name: "Gameover.fyi",
+    description:
+      "A vision model watches robot-combat footage and turns it into a retro arcade fight — health bars, hit markers, K.O.",
+    tags: ["Python", "Anthropic", "Bright Data", "ElevenLabs", "Vanilla JS"],
+    website: "https://gameover.fyi",
+    github: "https://github.com/soycarts/gameover",
+    image: "/projects/gameover.jpg",
+  },
+  {
     name: "Zapflex",
     description:
       "An autonomous home-battery flexibility company run by a swarm of AI agents — optimizing batteries against dynamic tariffs to earn grid-services revenue.",
