@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { profile, socials } from "@/lib/data";
+import { ShieldedImage } from "./ShieldedImage";
 
 export function Hero() {
   const x = socials.find((s) => s.label === "X");
@@ -57,13 +57,14 @@ export function Hero() {
         </div>
 
         <figure className="shrink-0">
-          <Image
+          <ShieldedImage
             src={profile.avatar}
             alt={profile.name}
             width={256}
             height={256}
             priority
-            className="h-32 w-32 border border-rule bg-paper-raised object-cover sm:h-44 sm:w-44"
+            wrapperClassName="relative block h-32 w-32 sm:h-44 sm:w-44"
+            className="h-full w-full border border-rule bg-paper-raised object-cover"
           />
           <figcaption className="kicker mt-2.5 text-ink-muted">
             {profile.role}

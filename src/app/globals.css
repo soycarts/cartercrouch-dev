@@ -234,6 +234,16 @@
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
+/* Companion to ShieldedImage: kills long-press save sheets on iOS and
+   native image dragging in WebKit/Blink, which draggable={false} alone
+   doesn't fully cover. */
+.img-shield,
+.img-shield img {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
