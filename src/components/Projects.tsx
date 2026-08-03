@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { projects } from "@/lib/data";
+import { ShieldedImage } from "./ShieldedImage";
 import { Section } from "./Section";
 
 export function Projects() {
@@ -12,11 +12,12 @@ export function Projects() {
           <article key={p.name} className="flex flex-col">
             {p.image ? (
               <div className="relative aspect-[16/10] border border-rule bg-paper-raised">
-                <Image
+                <ShieldedImage
                   src={p.image}
                   alt={`Screenshot of ${p.name}`}
                   fill
                   sizes="(min-width: 1280px) 380px, (min-width: 640px) 50vw, 100vw"
+                  wrapperClassName="absolute inset-0"
                   className="object-cover object-top"
                 />
               </div>
