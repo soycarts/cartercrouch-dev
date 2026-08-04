@@ -160,6 +160,7 @@ export const quests: Quest[] = [
   { title: "Float the Sacred River at Sun City (South Africa)", category: "Experiences", status: "queued", detail: "500 m" },
   { title: "Float the Rio Lento at Thermas dos Laranjais (Brazil)", category: "Experiences", status: "queued", detail: "300 m+" },
   { title: "Float the lazy river at Gumbuya World (Australia)", category: "Experiences", status: "queued", detail: "300 m" },
+  { title: "Float the lazy river at MGM Grand (Las Vegas)", category: "Experiences", status: "completed", detail: "1,000 ft" },
   { title: "Visit Bangkok", category: "Experiences", status: "queued" },
   { title: "Attend Coachella", category: "Experiences", status: "completed" },
   { title: "Attend Burning Man", category: "Experiences", status: "completed" },
