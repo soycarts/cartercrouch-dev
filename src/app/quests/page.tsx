@@ -13,25 +13,19 @@ export const metadata: Metadata = {
     "A quest board — running, queued, and completed. Inspired by thomas.md/quests.",
 };
 
-// Status badge treatments: running borrows the live pulse from LiveStats,
-// completed stays plain ink, queued fades back.
+// Status chips: queued fades back, running takes the accent tint, completed
+// flips to a filled ink chip. Square corners, per the house style.
 const statusStyle: Record<QuestStatus, string> = {
-  running: "text-accent",
-  queued: "text-ink-muted",
-  completed: "text-ink",
+  running: "bg-accent/10 text-accent",
+  queued: "bg-ink/5 text-ink-muted",
+  completed: "bg-ink text-paper",
 };
 
 function StatusBadge({ status }: { status: QuestStatus }) {
   return (
     <span
-      className={`kicker flex shrink-0 items-center gap-1.5 ${statusStyle[status]}`}
+      className={`kicker inline-block shrink-0 px-2 py-1 ${statusStyle[status]}`}
     >
-      {status === "running" && (
-        <span
-          aria-hidden
-          className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-accent"
-        />
-      )}
       {status}
     </span>
   );
@@ -88,16 +82,16 @@ export default function Quests() {
               meta={`${items.length} quest${items.length === 1 ? "" : "s"}`}
               wide
             >
-              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((q) => (
                   <li
                     key={q.title}
-                    className="flex flex-col gap-4 border border-rule bg-paper-raised p-5"
+                    className="flex flex-col gap-2.5 border border-rule bg-paper-raised p-3.5"
                   >
-                    <span className="text-[1.05rem] leading-snug">
+                    <span className="text-[0.95rem] leading-snug">
                       {q.title}
                     </span>
-                    {/* mt-auto pins the badge to the card's bottom edge so it
+                    {/* mt-auto pins the chip to the card's bottom edge so it
                         lines up across a row even when titles wrap. */}
                     <div className="mt-auto">
                       <StatusBadge status={q.status} />
