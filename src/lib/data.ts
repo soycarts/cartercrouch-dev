@@ -124,6 +124,74 @@ export const projects: Project[] = [
   },
 ];
 
+export type QuestStatus = "running" | "queued" | "completed";
+
+// Rendered as section headings on /quests, in this order.
+export const questCategories = [
+  "Experiences",
+  "Skills",
+  "Sport",
+  "Living",
+] as const;
+
+export type QuestCategory = (typeof questCategories)[number];
+
+export type Quest = {
+  title: string;
+  category: QuestCategory;
+  status: QuestStatus;
+};
+
+// The quest log (/quests) — inspired by https://thomas.md/quests.
+export const quests: Quest[] = [
+  // Experiences
+  { title: "See capybaras in Argentina / Brazil", category: "Experiences", status: "queued" },
+  { title: "Swim with pigs in the Bahamas", category: "Experiences", status: "queued" },
+  { title: "Attend Glastonbury", category: "Experiences", status: "queued" },
+  { title: "Visit Suntago Water World (Poland)", category: "Experiences", status: "queued" },
+  { title: "See the Gävle Goat with my brother", category: "Experiences", status: "queued" },
+  { title: "Gamble in Macau", category: "Experiences", status: "queued" },
+  // The longest lazy river on each continent.
+  { title: "Float the mile-long lazy river at Waco Surf (Texas)", category: "Experiences", status: "queued" },
+  { title: "Float the lazy river at Chimelong Water Park (Guangzhou)", category: "Experiences", status: "queued" },
+  { title: "Float the lazy river at Aquaventure, Atlantis The Palm (Dubai)", category: "Experiences", status: "queued" },
+  { title: "Float the Mai Thai River at Siam Park (Tenerife)", category: "Experiences", status: "queued" },
+  { title: "Float the Sacred River at Sun City (South Africa)", category: "Experiences", status: "queued" },
+  { title: "Float the Rio Lento at Thermas dos Laranjais (Brazil)", category: "Experiences", status: "queued" },
+  { title: "Float the lazy river at Gumbuya World (Australia)", category: "Experiences", status: "queued" },
+  { title: "Attend Coachella", category: "Experiences", status: "completed" },
+  { title: "Attend Burning Man", category: "Experiences", status: "completed" },
+  {
+    title: "Visit Game of Thrones filming locations in Ireland & Croatia",
+    category: "Experiences",
+    status: "completed",
+  },
+  {
+    title: "Visit Mamma Mia filming locations in Greece",
+    category: "Experiences",
+    status: "completed",
+  },
+  { title: "Visit Tropical Islands (Germany)", category: "Experiences", status: "completed" },
+  { title: "See Ye live", category: "Experiences", status: "completed" },
+  { title: "See The Weeknd live", category: "Experiences", status: "completed" },
+  { title: "Visit the Colosseum", category: "Experiences", status: "completed" },
+  { title: "Visit the Great Wall of China", category: "Experiences", status: "completed" },
+  { title: "Gamble in Las Vegas", category: "Experiences", status: "completed" },
+  // Skills
+  { title: "Learn Spanish", category: "Skills", status: "running" },
+  { title: "Learn to DJ", category: "Skills", status: "running" },
+  { title: "Learn guitar", category: "Skills", status: "queued" },
+  { title: "Learn scuba diving", category: "Skills", status: "queued" },
+  // Sport
+  { title: "Run a marathon", category: "Sport", status: "running" },
+  { title: "Complete Tough Mudder", category: "Sport", status: "completed" },
+  // Living
+  { title: "Live in Tokyo / Shenzhen", category: "Living", status: "queued" },
+  { title: "Live off-grid", category: "Living", status: "completed" },
+  { title: "Live in London", category: "Living", status: "completed" },
+  { title: "Live in Los Angeles", category: "Living", status: "completed" },
+];
+
 export const skills: string[] = [
   "Python",
   "SQL",
