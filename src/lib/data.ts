@@ -159,6 +159,7 @@ export const quests: Quest[] = [
   { title: "Float the Sacred River at Sun City (South Africa)", category: "Experiences", status: "queued" },
   { title: "Float the Rio Lento at Thermas dos Laranjais (Brazil)", category: "Experiences", status: "queued" },
   { title: "Float the lazy river at Gumbuya World (Australia)", category: "Experiences", status: "queued" },
+  { title: "Visit Bangkok", category: "Experiences", status: "queued" },
   { title: "Attend Coachella", category: "Experiences", status: "completed" },
   { title: "Attend Burning Man", category: "Experiences", status: "completed" },
   {
@@ -186,7 +187,9 @@ export const quests: Quest[] = [
   { title: "Run a marathon", category: "Sport", status: "running" },
   { title: "Complete Tough Mudder", category: "Sport", status: "completed" },
   // Living
+  { title: "Get a little dog", category: "Living", status: "queued" },
   { title: "Live in Tokyo / Shenzhen", category: "Living", status: "queued" },
+  { title: "Live in Spain", category: "Living", status: "queued" },
   { title: "Live off-grid", category: "Living", status: "completed" },
   { title: "Live in London", category: "Living", status: "completed" },
   { title: "Live in Los Angeles", category: "Living", status: "completed" },
