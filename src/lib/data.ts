@@ -188,11 +188,7 @@ export const quests: Quest[] = [
   { title: "Complete Tough Mudder", category: "Sport", status: "completed" },
   // Living
   { title: "Get a little dog", category: "Living", status: "queued" },
-  { title: "Live in Tokyo / Shenzhen", category: "Living", status: "queued" },
-  { title: "Live in Spain", category: "Living", status: "queued" },
   { title: "Live off-grid", category: "Living", status: "completed" },
-  { title: "Live in London", category: "Living", status: "completed" },
-  { title: "Live in Los Angeles", category: "Living", status: "completed" },
 ];
 
 export const skills: string[] = [
