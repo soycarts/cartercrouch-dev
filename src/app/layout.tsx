@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Newsreader, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { profile, socials } from "@/lib/data";
@@ -21,16 +21,22 @@ const title = `${profile.name} — ${profile.role}`;
 const description =
   "Carter Crouch is an analytics engineer building AI agent systems — Zapflex, Bountify.ai, and Swarmtip. Based in Los Angeles and London.";
 
+export const viewport: Viewport = {
+  themeColor: "#fcfbf9",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://cartercrouch.dev"),
   title,
   description,
+  alternates: { canonical: "/" },
   openGraph: {
     title,
     description,
     url: "/",
     siteName: profile.name,
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",

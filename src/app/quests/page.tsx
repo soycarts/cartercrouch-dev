@@ -7,10 +7,31 @@ import {
 import { Section } from "@/components/Section";
 import { Footer } from "@/components/Contact";
 
+const questsTitle = "Quests — Carter Crouch";
+const questsDescription =
+  "A quest board — running, queued, and completed. Inspired by thomas.md/quests.";
+
+// The openGraph/twitter blocks are needed because Next merges metadata
+// shallowly per-field — without them, shares of /quests carry the root
+// OG/Twitter titles.
 export const metadata: Metadata = {
-  title: "Quests — Carter Crouch",
-  description:
-    "A quest board — running, queued, and completed. Inspired by thomas.md/quests.",
+  title: questsTitle,
+  description: questsDescription,
+  alternates: { canonical: "/quests" },
+  openGraph: {
+    title: questsTitle,
+    description: questsDescription,
+    url: "/quests",
+    siteName: "Carter Crouch",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: questsTitle,
+    description: questsDescription,
+    creator: "@soycarts",
+  },
 };
 
 // Status chips: queued fades back, running takes the accent tint, completed
