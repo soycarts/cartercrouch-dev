@@ -35,12 +35,15 @@ export function Contact() {
         <ul className="border-t border-rule lg:border-t-0 lg:border-l lg:border-rule lg:pl-8">
           {socials.map((s) => {
             const Icon = socialIcons[s.label];
+            const isMail = s.href.startsWith("mailto:");
             return (
               <li key={s.label}>
                 <a
                   href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  // mailto opens the mail client in place — a blank tab would
+                  // just be an empty window.
+                  target={isMail ? undefined : "_blank"}
+                  rel={isMail ? undefined : "noopener noreferrer"}
                   className="group flex items-center justify-between gap-4 border-b border-rule py-2.5 transition-colors hover:text-accent"
                 >
                   <span className="flex items-center gap-3">

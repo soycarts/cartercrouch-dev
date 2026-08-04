@@ -44,6 +44,11 @@ export const socials: Social[] = [
     href: "https://soycarts.substack.com",
     handle: "@soycarts",
   },
+  {
+    label: "Email",
+    href: "mailto:hello@carter.md",
+    handle: "hello@carter.md",
+  },
 ];
 
 // The dated "Now" strip. Keep `updated` current whenever the items change —

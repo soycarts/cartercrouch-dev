@@ -43,6 +43,14 @@ export function SubstackIcon(props: IconProps) {
   );
 }
 
+export function EmailIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+      <path d="M3 4.5h18A1.5 1.5 0 0 1 22.5 6v.35L12 12.86 1.5 6.35V6A1.5 1.5 0 0 1 3 4.5zm-1.5 4.2 9.71 6.02a1.5 1.5 0 0 0 1.58 0l9.71-6.02V18a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 18V8.7z" />
+    </svg>
+  );
+}
+
 export const socialIcons: Record<
   string,
   (props: IconProps) => React.JSX.Element
@@ -52,4 +60,5 @@ export const socialIcons: Record<
   LinkedIn: LinkedInIcon,
   Instagram: InstagramIcon,
   Substack: SubstackIcon,
+  Email: EmailIcon,
 };
