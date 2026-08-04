@@ -79,23 +79,18 @@ export default function Quests() {
               key={category}
               id={`quests-${category.toLowerCase()}`}
               eyebrow={category}
-              meta={`${items.length} quest${items.length === 1 ? "" : "s"}`}
               wide
             >
-              <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((q) => (
                   <li
                     key={q.title}
-                    className="flex flex-col gap-2.5 border border-rule bg-paper-raised p-3.5"
+                    className="flex items-center justify-between gap-3 border border-rule bg-paper-raised px-3 py-2.5"
                   >
-                    <span className="text-[0.95rem] leading-snug">
+                    <span className="min-w-0 text-[0.9rem] leading-snug">
                       {q.title}
                     </span>
-                    {/* mt-auto pins the chip to the card's bottom edge so it
-                        lines up across a row even when titles wrap. */}
-                    <div className="mt-auto">
-                      <StatusBadge status={q.status} />
-                    </div>
+                    <StatusBadge status={q.status} />
                   </li>
                 ))}
               </ul>
