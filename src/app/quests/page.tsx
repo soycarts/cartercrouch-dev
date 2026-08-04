@@ -111,6 +111,11 @@ export default function Quests() {
                     <span className="min-w-0 text-[0.9rem] leading-snug">
                       {q.title}
                     </span>
+                    {q.detail && (
+                      <span className="ml-auto shrink-0 whitespace-nowrap text-[0.75rem] text-ink-muted tabular-nums">
+                        {q.detail}
+                      </span>
+                    )}
                     <StatusBadge status={q.status} />
                   </li>
                 ))}

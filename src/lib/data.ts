@@ -140,6 +140,7 @@ export type Quest = {
   title: string;
   category: QuestCategory;
   status: QuestStatus;
+  detail?: string;
 };
 
 // The quest log (/quests) — inspired by https://thomas.md/quests.
@@ -152,13 +153,13 @@ export const quests: Quest[] = [
   { title: "See the Gävle Goat with my brother", category: "Experiences", status: "queued" },
   { title: "Gamble in Macau", category: "Experiences", status: "queued" },
   // The longest lazy river on each continent.
-  { title: "Float the mile-long lazy river at Waco Surf (Texas)", category: "Experiences", status: "queued" },
-  { title: "Float the lazy river at Chimelong Water Park (Guangzhou)", category: "Experiences", status: "queued" },
-  { title: "Float the lazy river at Aquaventure, Atlantis The Palm (Dubai)", category: "Experiences", status: "queued" },
-  { title: "Float the Mai Thai River at Siam Park (Tenerife)", category: "Experiences", status: "queued" },
-  { title: "Float the Sacred River at Sun City (South Africa)", category: "Experiences", status: "queued" },
-  { title: "Float the Rio Lento at Thermas dos Laranjais (Brazil)", category: "Experiences", status: "queued" },
-  { title: "Float the lazy river at Gumbuya World (Australia)", category: "Experiences", status: "queued" },
+  { title: "Float the lazy river at Waco Surf (Texas)", category: "Experiences", status: "queued", detail: "1 mile" },
+  { title: "Float the lazy river at Chimelong Water Park (Guangzhou)", category: "Experiences", status: "queued", detail: "~800 m" },
+  { title: "Float the lazy river at Aquaventure, Atlantis The Palm (Dubai)", category: "Experiences", status: "queued", detail: "2.3 km" },
+  { title: "Float the Mai Thai River at Siam Park (Tenerife)", category: "Experiences", status: "queued", detail: "~1 km" },
+  { title: "Float the Sacred River at Sun City (South Africa)", category: "Experiences", status: "queued", detail: "500 m" },
+  { title: "Float the Rio Lento at Thermas dos Laranjais (Brazil)", category: "Experiences", status: "queued", detail: "300 m+" },
+  { title: "Float the lazy river at Gumbuya World (Australia)", category: "Experiences", status: "queued", detail: "300 m" },
   { title: "Visit Bangkok", category: "Experiences", status: "queued" },
   { title: "Attend Coachella", category: "Experiences", status: "completed" },
   { title: "Attend Burning Man", category: "Experiences", status: "completed" },
