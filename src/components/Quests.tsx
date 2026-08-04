@@ -5,11 +5,8 @@ import { Section } from "./Section";
 export function Quests() {
   return (
     <Section id="quests" eyebrow="Quests">
-      <p className="max-w-[46ch] text-[1.05rem] leading-relaxed text-ink-soft">
-        A life list of quests — running, queued, and completed.
-      </p>
-      <Link href="/quests" className="link-mono link-mono--in mt-5">
-        View the quest log
+      <Link href="/quests" className="link-mono link-mono--in">
+        View quests
       </Link>
     </Section>
   );
