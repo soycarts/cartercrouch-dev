@@ -19,7 +19,7 @@ const plexMono = IBM_Plex_Mono({
 
 const title = `${profile.name} — ${profile.role}`;
 const description =
-  "Carter Crouch is an analytics engineer building AI agent systems — Zapflex, Bountify.ai, and Swarmtip. Based in Los Angeles and London.";
+  "Carter Crouch is an analytics engineer building AI agent systems. Based in Los Angeles and London.";
 
 export const viewport: Viewport = {
   themeColor: "#fcfbf9",
