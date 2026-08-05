@@ -42,6 +42,13 @@ const statusStyle: Record<QuestStatus, string> = {
   completed: "bg-ink text-paper",
 };
 
+// Card order within each category: queued, then running, then completed.
+const statusOrder: Record<QuestStatus, number> = {
+  queued: 0,
+  running: 1,
+  completed: 2,
+};
+
 function StatusBadge({ status }: { status: QuestStatus }) {
   return (
     <span
@@ -93,7 +100,9 @@ export default function Quests() {
         </div>
 
         {questCategories.map((category) => {
-          const items = quests.filter((q) => q.category === category);
+          const items = quests
+            .filter((q) => q.category === category)
+            .sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
           if (items.length === 0) return null;
           return (
             <Section
