@@ -15,7 +15,7 @@ export const profile = {
   // Shown as a static tile in the live stats strip (no public API for this).
   instagramViews: "10M+",
   // Shown in the About section.
-  bio: "Hi, I'm Carter Crouch, passionate about building scalable systems that tangibly advance human flourishing. I work with Python, SQL, JavaScript, LangChain, DBT, and Snowflake, and I'm also a content creator with 10M+ Instagram views.",
+  bio: "Hi, I'm Carter Crouch, passionate about building scalable systems that tangibly advance human flourishing. I work with Python, SQL, TypeScript, DBT, and Snowflake, and I'm also a content creator with 10M+ Instagram views.",
   // Drop a PDF at public/resume.pdf, or point this at any hosted URL.
   resumeUrl: "/resume.pdf",
 };
@@ -204,7 +204,7 @@ export const skills: string[] = [
   "dbt",
   "Snowflake",
   "Airflow",
-  "LangChain",
+  "TypeScript",
   "React / Next.js",
   "AWS",
   "GCP",
