@@ -15,6 +15,8 @@
   --rule: #e2dfda;
   --rule-strong: #171614;
   --accent: #0a6b53;
+  /* Accolade gold — muted enough to sit on paper without shouting. */
+  --gold: #8a6b21;
 
   /* Rail grid: section label left, content right. */
   --rail: 150px;
@@ -34,6 +36,7 @@
   --color-rule: var(--rule);
   --color-rule-strong: var(--rule-strong);
   --color-accent: var(--accent);
+  --color-gold: var(--gold);
   --font-serif: var(--font-newsreader);
   --font-mono: var(--font-plex-mono);
 }

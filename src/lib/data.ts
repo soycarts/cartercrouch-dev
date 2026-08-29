@@ -70,6 +70,8 @@ export type Project = {
   tags: string[];
   website?: string;
   github?: string;
+  // Accolade shown as a gold starred line on the card (e.g. hackathon prizes).
+  award?: string;
   // Screenshot shown alongside the entry (place files in public/projects).
   image?: string;
 };
@@ -91,7 +93,7 @@ export const projects: Project[] = [
     // Run as a business — stack kept proprietary.
     tags: [],
     website: "https://approval.md",
-    // TODO: add public/projects/approval.jpg for the card screenshot.
+    image: "/projects/approval.jpg",
   },
   {
     name: "Jobmaxxing.ai",
@@ -109,6 +111,7 @@ export const projects: Project[] = [
     // Run as a business — stack kept proprietary.
     tags: [],
     website: "https://yappy.fyi",
+    award: "TechEurope Hackathon 2x Prize Winner",
     // TODO: add public/projects/yappy.jpg for the card screenshot.
   },
   {

@@ -33,6 +33,15 @@ export function Projects() {
               <p className="kicker mt-1.5 text-ink-muted">{p.tags.join(" · ")}</p>
             )}
 
+            {p.award && (
+              <p className="kicker mt-1.5 flex items-baseline gap-1.5 text-gold">
+                <span aria-hidden className="text-[0.65rem]">
+                  ★
+                </span>
+                {p.award}
+              </p>
+            )}
+
             <p className="mt-2.5 text-[0.85rem] leading-relaxed text-ink-soft">
               {p.description}
             </p>
