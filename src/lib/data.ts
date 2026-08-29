@@ -85,6 +85,15 @@ export const projects: Project[] = [
     image: "/projects/bountify.jpg",
   },
   {
+    name: "Approval.md",
+    description:
+      "Human sign-off for AI agents — a file-based convention and runtime gating side-effecting actions.",
+    // Run as a business — stack kept proprietary.
+    tags: [],
+    website: "https://approval.md",
+    // TODO: add public/projects/approval.jpg for the card screenshot.
+  },
+  {
     name: "Jobmaxxing.ai",
     description:
       "A job tracking superapp — prospect-to-offer board, AI research briefs, and application drafts.",
@@ -92,6 +101,15 @@ export const projects: Project[] = [
     tags: [],
     website: "https://jobmaxxing.ai",
     image: "/projects/jobmaxxing.jpg",
+  },
+  {
+    name: "Yappy.fyi",
+    description:
+      "Campaign intelligence on a shared team board — learns how your product should land in every market.",
+    // Run as a business — stack kept proprietary.
+    tags: [],
+    website: "https://yappy.fyi",
+    // TODO: add public/projects/yappy.jpg for the card screenshot.
   },
   {
     name: "Samefacts.co.uk",
