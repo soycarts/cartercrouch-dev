@@ -112,7 +112,7 @@ export const projects: Project[] = [
     tags: [],
     website: "https://yappy.fyi",
     award: "TechEurope Hackathon 2x Prize Winner",
-    // TODO: add public/projects/yappy.jpg for the card screenshot.
+    image: "/projects/yappy.jpg",
   },
   {
     name: "Samefacts.co.uk",
