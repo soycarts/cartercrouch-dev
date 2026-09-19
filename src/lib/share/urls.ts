@@ -35,6 +35,14 @@ export function pdfUrl(id: string): string {
   return `${shareOrigin()}/${id}.pdf`;
 }
 
+export function attachmentUrl(id: string, name: string): string {
+  return `${shareOrigin()}/${id}/files/${encodeURIComponent(name)}`;
+}
+
+export function attachmentPdfUrl(id: string, name: string): string {
+  return `${attachmentUrl(id, name)}/pdf`;
+}
+
 /** A filesystem-safe filename derived from the title, e.g. "agent-village.md". */
 export function downloadFilename(
   title: string | null,

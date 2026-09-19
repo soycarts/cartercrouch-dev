@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
   // The key is a glob, so "[id]" would be a character class; use a wildcard.
   outputFileTracingIncludes: {
     "/share/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/share/*/files/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   async rewrites() {
     return {

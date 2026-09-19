@@ -13,7 +13,7 @@ const SOURCE = "# Proposal\r\n\r\nline one  \r\n\tindented\n\n```\ncode\n```\n";
 describe("share store", () => {
   it("publishes and returns the exact source", async () => {
     const store = new MemoryShareStore();
-    const doc = await publishDocument(store, SOURCE);
+    const doc = await publishDocument(store, { markdown: SOURCE });
     expect(doc.title).toBe("Proposal");
     expect(doc.revokedAt).toBeNull();
     const read = await getPublicDocument(store, doc.id);
@@ -22,15 +22,15 @@ describe("share store", () => {
 
   it("rejects empty or oversized bodies", async () => {
     const store = new MemoryShareStore();
-    await expect(publishDocument(store, "   ")).rejects.toBeInstanceOf(ShareError);
-    await expect(publishDocument(store, 42)).rejects.toBeInstanceOf(ShareError);
-    await expect(publishDocument(store, "x".repeat(600 * 1024))).rejects.toMatchObject({ status: 413 });
+    await expect(publishDocument(store, { markdown: "   " })).rejects.toBeInstanceOf(ShareError);
+    await expect(publishDocument(store, { markdown: 42 })).rejects.toBeInstanceOf(ShareError);
+    await expect(publishDocument(store, { markdown: "x".repeat(600 * 1024) })).rejects.toMatchObject({ status: 413 });
   });
 
   it("updates in place with a stable id", async () => {
     const store = new MemoryShareStore();
-    const doc = await publishDocument(store, "# One");
-    const updated = await updateDocument(store, doc.id, "# Two\n\nbody");
+    const doc = await publishDocument(store, { markdown: "# One" });
+    const updated = await updateDocument(store, doc.id, { markdown: "# Two\n\nbody" });
     expect(updated.id).toBe(doc.id);
     expect(updated.title).toBe("Two");
     expect(updated.createdAt).toBe(doc.createdAt);
@@ -39,7 +39,7 @@ describe("share store", () => {
 
   it("hides revoked, unknown, and malformed ids uniformly", async () => {
     const store = new MemoryShareStore();
-    const doc = await publishDocument(store, "# One");
+    const doc = await publishDocument(store, { markdown: "# One" });
     await setRevoked(store, doc.id, true);
     expect(await getPublicDocument(store, doc.id)).toBeNull();
     expect(await getPublicDocument(store, "nope")).toBeNull();
@@ -48,11 +48,34 @@ describe("share store", () => {
     expect(await getPublicDocument(store, doc.id)).not.toBeNull();
   });
 
+  it("validates attachments", async () => {
+    const store = new MemoryShareStore();
+    const ok = await publishDocument(store, {
+      markdown: "# Doc",
+      attachments: [{ name: "spec.md", markdown: "# Spec" }, { name: "strategy v2.md", markdown: "s" }],
+    });
+    expect(ok.attachments.map((a) => a.name)).toEqual(["spec.md", "strategy v2.md"]);
+    await expect(
+      publishDocument(store, { markdown: "# Doc", attachments: [{ name: "evil.txt", markdown: "x" }] }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      publishDocument(store, { markdown: "# Doc", attachments: [{ name: "../x.md", markdown: "x" }] }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      publishDocument(store, {
+        markdown: "# Doc",
+        attachments: [{ name: "a.md", markdown: "x" }, { name: "A.md", markdown: "y" }],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    const updated = await updateDocument(store, ok.id, { markdown: "# Doc", attachments: [] });
+    expect(updated.attachments).toEqual([]);
+  });
+
   it("lists newest first for the owner", async () => {
     const store = new MemoryShareStore();
-    const a = await publishDocument(store, "# A");
+    const a = await publishDocument(store, { markdown: "# A" });
     await new Promise((r) => setTimeout(r, 2));
-    const b = await publishDocument(store, "# B");
+    const b = await publishDocument(store, { markdown: "# B" });
     const list = await store.list();
     expect(list.map((d) => d.id)).toEqual([b.id, a.id]);
   });

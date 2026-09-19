@@ -64,3 +64,26 @@ describe("share routes", () => {
     expect(revoked.status).toBe(404);
   });
 });
+
+describe("attachment routes", () => {
+  it("serves and 404s attachments", async () => {
+    const { GET } = await import("@/app/share/[id]/files/[name]/route");
+    const { POST } = await import("@/app/share/api/share/route");
+    const res = await POST(
+      new Request("http://x/api/share", {
+        method: "POST",
+        headers: { authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`, "content-type": "application/json" },
+        body: JSON.stringify({ markdown: "# Doc", attachments: [{ name: "spec.md", markdown: "# Spec\n" }] }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const { id } = await res.json();
+    const ok = await GET(new Request("http://x/?download=1"), { params: Promise.resolve({ id, name: "spec.md" }) });
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+    expect(ok.headers.get("content-disposition")).toBe('attachment; filename="spec.md"');
+    expect(await ok.text()).toBe("# Spec\n");
+    const missing = await GET(new Request("http://x/"), { params: Promise.resolve({ id, name: "nope.md" }) });
+    expect(missing.status).toBe(404);
+  });
+});

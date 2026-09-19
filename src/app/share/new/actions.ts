@@ -14,10 +14,14 @@ import {
 
 export type PublishState = { error?: string; markdown?: string };
 
-async function markdownFrom(formData: FormData): Promise<string> {
-  const file = formData.get("file");
-  if (file instanceof File && file.size > 0) return await file.text();
-  return String(formData.get("markdown") ?? "");
+function inputFrom(formData: FormData): { markdown: string; attachments: unknown } {
+  let attachments: unknown = [];
+  try {
+    attachments = JSON.parse(String(formData.get("attachments") || "[]"));
+  } catch {
+    attachments = undefined; // fails validation with a clear message
+  }
+  return { markdown: String(formData.get("markdown") ?? ""), attachments };
 }
 
 function fail(err: unknown, markdown: string): PublishState {
@@ -27,9 +31,10 @@ function fail(err: unknown, markdown: string): PublishState {
 
 export async function publish(_prev: PublishState, formData: FormData): Promise<PublishState> {
   if (!(await isOwnerSession())) return { error: "Not signed in." };
-  const markdown = await markdownFrom(formData);
+  const input = inputFrom(formData);
+  const markdown = input.markdown;
   try {
-    const doc = await publishDocument(getStore(), markdown);
+    const doc = await publishDocument(getStore(), input);
     redirect(`${internalBase()}/manage/${doc.id}?published=1`);
   } catch (err) {
     return fail(err, markdown);
@@ -39,9 +44,10 @@ export async function publish(_prev: PublishState, formData: FormData): Promise<
 export async function update(_prev: PublishState, formData: FormData): Promise<PublishState> {
   if (!(await isOwnerSession())) return { error: "Not signed in." };
   const id = String(formData.get("id") ?? "");
-  const markdown = await markdownFrom(formData);
+  const input = inputFrom(formData);
+  const markdown = input.markdown;
   try {
-    await updateDocument(getStore(), id, markdown);
+    await updateDocument(getStore(), id, input);
   } catch (err) {
     return fail(err, markdown);
   }

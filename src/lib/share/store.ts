@@ -1,10 +1,17 @@
 import { generateShareId, isShareId } from "./ids";
 import { inferTitle } from "./markdown";
 
+/** A context file shared alongside the document. Markdown only. */
+export type Attachment = {
+  name: string;
+  markdown: string;
+};
+
 export type SharedDocument = {
   id: string;
   /** The canonical Markdown, byte-for-byte as published. */
   markdown: string;
+  attachments: Attachment[];
   title: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +49,49 @@ export class ShareError extends Error {
 }
 
 const MAX_BYTES = 512 * 1024;
+const MAX_TOTAL_BYTES = 900 * 1024; // one Redis value holds the lot
+const MAX_ATTACHMENTS = 20;
+export const ATTACHMENT_NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,78}\.md$/;
+
+export type DocumentInput = {
+  markdown: unknown;
+  attachments?: unknown;
+};
+
+function validateAttachments(input: unknown): Attachment[] {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) throw new ShareError("Attachments must be a list.", 400);
+  if (input.length > MAX_ATTACHMENTS) {
+    throw new ShareError(`At most ${MAX_ATTACHMENTS} attachments.`, 400);
+  }
+  const seen = new Set<string>();
+  return input.map((raw) => {
+    const name = typeof raw?.name === "string" ? raw.name.trim() : "";
+    if (!ATTACHMENT_NAME.test(name)) {
+      throw new ShareError(`"${name || "?"}" is not a valid .md filename.`, 400);
+    }
+    const key = name.toLowerCase();
+    if (seen.has(key)) throw new ShareError(`Duplicate attachment "${name}".`, 400);
+    seen.add(key);
+    if (typeof raw.markdown !== "string" || Buffer.byteLength(raw.markdown, "utf8") > MAX_BYTES) {
+      throw new ShareError(`"${name}" is empty or exceeds 512 KB.`, 413);
+    }
+    return { name, markdown: raw.markdown };
+  });
+}
+
+function validateInput(input: DocumentInput): { markdown: string; attachments: Attachment[] } {
+  const markdown = validateMarkdown(input.markdown);
+  const attachments = validateAttachments(input.attachments);
+  const total = attachments.reduce(
+    (n, a) => n + Buffer.byteLength(a.markdown, "utf8"),
+    Buffer.byteLength(markdown, "utf8"),
+  );
+  if (total > MAX_TOTAL_BYTES) {
+    throw new ShareError("Document plus attachments exceed 900 KB.", 413);
+  }
+  return { markdown, attachments };
+}
 
 function validateMarkdown(markdown: unknown): string {
   if (typeof markdown !== "string") {
@@ -58,13 +108,14 @@ function validateMarkdown(markdown: unknown): string {
 
 export async function publishDocument(
   store: ShareStore,
-  markdown: unknown,
+  input: DocumentInput,
 ): Promise<SharedDocument> {
-  const body = validateMarkdown(markdown);
+  const { markdown: body, attachments } = validateInput(input);
   const now = new Date().toISOString();
   const doc: SharedDocument = {
     id: generateShareId(),
     markdown: body,
+    attachments,
     title: await inferTitle(body),
     createdAt: now,
     updatedAt: now,
@@ -79,14 +130,15 @@ export async function publishDocument(
 export async function updateDocument(
   store: ShareStore,
   id: string,
-  markdown: unknown,
+  input: DocumentInput,
 ): Promise<SharedDocument> {
   const existing = await store.get(id);
   if (!existing) throw new ShareError("Document not found.", 404);
-  const body = validateMarkdown(markdown);
+  const { markdown: body, attachments } = validateInput(input);
   const doc: SharedDocument = {
     ...existing,
     markdown: body,
+    attachments,
     title: await inferTitle(body),
     updatedAt: new Date().toISOString(),
   };
@@ -120,5 +172,10 @@ export async function getPublicDocument(
   if (!isShareId(id)) return null;
   const doc = await store.get(id);
   if (!doc || doc.revokedAt) return null;
-  return doc;
+  return { ...doc, attachments: doc.attachments ?? [] };
+}
+
+export function findAttachment(doc: SharedDocument, name: string): Attachment | null {
+  const key = name.toLowerCase();
+  return (doc.attachments ?? []).find((a) => a.name.toLowerCase() === key) ?? null;
 }

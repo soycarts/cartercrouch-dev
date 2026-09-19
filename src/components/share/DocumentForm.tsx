@@ -2,26 +2,43 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { preview, type PublishState } from "@/app/share/new/actions";
+import type { Attachment } from "@/lib/share/store";
 
 type Action = (prev: PublishState, formData: FormData) => Promise<PublishState>;
 
-// Shared by /new and /manage/[id]: textarea, optional .md upload, preview
-// (rendered server-side through the same sanitizer as the reader), submit.
+// Shared by /new and /manage/[id]: Markdown textarea, optional .md upload,
+// context-file attachments, preview, submit.
 export function DocumentForm({
   action,
   id,
   initialMarkdown = "",
+  initialAttachments = [],
   submitLabel,
 }: {
   action: Action;
   id?: string;
   initialMarkdown?: string;
+  initialAttachments?: Attachment[];
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState<PublishState, FormData>(action, {});
   const [markdown, setMarkdown] = useState(state.markdown ?? initialMarkdown);
+  const [attachments, setAttachments] = useState<Attachment[]>(initialAttachments);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewing, startPreview] = useTransition();
+
+  const addFiles = async (list: FileList | null) => {
+    if (!list) return;
+    const incoming = await Promise.all(
+      [...list].map(async (f) => ({ name: f.name, markdown: await f.text() })),
+    );
+    setAttachments((prev) => {
+      const next = prev.filter(
+        (p) => !incoming.some((n) => n.name.toLowerCase() === p.name.toLowerCase()),
+      );
+      return [...next, ...incoming];
+    });
+  };
 
   return (
     <form action={formAction} className="mt-8">
@@ -54,6 +71,42 @@ export function DocumentForm({
         className="share-field share-textarea mt-2"
         placeholder={"# Title\n\nBody…"}
       />
+
+      <div className="mt-8 flex flex-wrap items-baseline justify-between gap-4">
+        <span className="kicker text-ink-muted">Files</span>
+        <label className="kicker cursor-pointer text-ink-muted hover:text-ink">
+          Add .md files
+          <input
+            type="file"
+            multiple
+            accept=".md,.markdown,text/markdown,text/plain"
+            className="sr-only"
+            onChange={async (e) => {
+              await addFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      <ul className="mt-2 border-t border-rule">
+        {attachments.map((a) => (
+          <li
+            key={a.name}
+            className="flex items-baseline justify-between gap-4 border-b border-rule py-2.5 font-mono text-[0.8rem]"
+          >
+            <span className="truncate">{a.name}</span>
+            <button
+              type="button"
+              onClick={() => setAttachments((prev) => prev.filter((p) => p.name !== a.name))}
+              className="kicker shrink-0 cursor-pointer text-ink-muted hover:text-ink"
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+      <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
+
       {state.error && <p className="mt-3 text-sm text-accent">{state.error}</p>}
       <div className="mt-6 flex flex-wrap items-center gap-6">
         <button type="submit" disabled={pending} className="share-button">

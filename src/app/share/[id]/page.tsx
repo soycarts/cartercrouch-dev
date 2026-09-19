@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getStore, getPublicDocument, readerUrl } from "@/lib/share";
-import { renderDocument } from "@/lib/share/markdown";
+import {
+  attachmentPdfUrl,
+  attachmentUrl,
+  findAttachment,
+  getStore,
+  getPublicDocument,
+  markdownUrl,
+  pdfUrl,
+  readerUrl,
+} from "@/lib/share";
+import { renderDocument, renderHtml } from "@/lib/share/markdown";
 import { ShareHeader } from "@/components/share/ShareHeader";
-import { ShareControls } from "@/components/share/ShareControls";
 import { Prose } from "@/components/share/Prose";
-import { CopyButton } from "@/components/share/CopyButton";
+import { DocumentViewer } from "@/components/share/DocumentViewer";
+import { AttachmentTree, type ViewerAttachment } from "@/components/share/AttachmentTree";
 
 // Always render from the store; documents can change or be revoked at any time.
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string }>;
-type Search = Promise<{ view?: string; print?: string }>;
+type Search = Promise<{ view?: string; print?: string; file?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
@@ -52,37 +61,72 @@ export default async function SharePage({
   params: Params;
   searchParams: Search;
 }) {
-  const [{ id }, { view, print }] = await Promise.all([params, searchParams]);
+  const [{ id }, { view, print, file }] = await Promise.all([params, searchParams]);
   const doc = await getPublicDocument(getStore(), id);
   if (!doc) notFound();
 
-  const rendered = await renderDocument(doc.markdown);
-  const markdownView = view === "markdown";
-  const printing = print === "1";
-
-  return (
-    <div className={`shell ${printing ? "share-print" : ""}`}>
-      <ShareHeader title={rendered.title} createdAt={doc.createdAt} updatedAt={doc.updatedAt} />
-      {!printing && (
-        <ShareControls
-          id={doc.id}
-          view={markdownView ? "markdown" : "reader"}
-          allowPdf={doc.settings.allowPdf}
-          allowMarkdownDownload={doc.settings.allowMarkdownDownload}
+  // Print view for the PDF route: main document, or one attachment.
+  if (print === "1") {
+    const target = file ? findAttachment(doc, file) : null;
+    if (file && !target) notFound();
+    const source = target ? target.markdown : doc.markdown;
+    const rendered = await renderDocument(source);
+    return (
+      <div className="shell share-print">
+        <ShareHeader
+          title={rendered.title ?? target?.name ?? null}
+          createdAt={doc.createdAt}
+          updatedAt={doc.updatedAt}
         />
-      )}
-      {markdownView ? (
-        <div className="py-8 sm:py-10">
-          <div className="kicker mb-4 flex items-baseline justify-between gap-6 text-ink-muted">
-            <span>Canonical source</span>
-            <CopyButton value={doc.markdown} label="Copy Markdown" />
-          </div>
-          <pre className="share-source">{doc.markdown}</pre>
-        </div>
-      ) : (
-        <div className="pt-8 sm:pt-10">
+        <div className="pt-8">
           <Prose sections={rendered.sections} />
         </div>
+      </div>
+    );
+  }
+
+  const [rendered, html, files] = await Promise.all([
+    renderDocument(doc.markdown),
+    renderHtml(doc.markdown),
+    Promise.all(
+      doc.attachments.map(async (a): Promise<ViewerAttachment> => {
+        const r = await renderDocument(a.markdown);
+        return {
+          name: a.name,
+          title: r.title,
+          sections: r.sections,
+          html: await renderHtml(a.markdown),
+          markdown: a.markdown,
+          pdfUrl: attachmentPdfUrl(doc.id, a.name),
+          markdownUrl: attachmentUrl(doc.id, a.name),
+        };
+      }),
+    ),
+  ]);
+
+  const viewer = (
+    <DocumentViewer
+      doc={{
+        sections: rendered.sections,
+        html,
+        markdown: doc.markdown,
+        pdfUrl: pdfUrl(doc.id),
+        markdownUrl: markdownUrl(doc.id),
+      }}
+      initialView={view === "markdown" ? "markdown" : "reader"}
+    />
+  );
+
+  return (
+    <div className="shell">
+      <ShareHeader title={rendered.title} createdAt={doc.createdAt} updatedAt={doc.updatedAt} />
+      {files.length > 0 ? (
+        <div className="share-layout">
+          <AttachmentTree files={files} />
+          <div className="min-w-0">{viewer}</div>
+        </div>
+      ) : (
+        viewer
       )}
     </div>
   );

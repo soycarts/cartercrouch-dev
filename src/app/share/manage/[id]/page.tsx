@@ -92,7 +92,13 @@ export default async function ManageDocumentPage({
 
       <div className="mt-12 border-t border-rule pt-8">
         <p className="kicker text-ink-muted">Edit · the share ID stays the same</p>
-        <DocumentForm action={update} id={id} initialMarkdown={doc.markdown} submitLabel="Save changes" />
+        <DocumentForm
+          action={update}
+          id={id}
+          initialMarkdown={doc.markdown}
+          initialAttachments={doc.attachments ?? []}
+          submitLabel="Save changes"
+        />
       </div>
     </div>
   );

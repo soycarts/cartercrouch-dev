@@ -54,6 +54,7 @@ requests on the share hostname are rewritten onto `/share/*` by
 | `https://share.carter.md/<id>` | Styled reader (`?view=markdown` shows the exact source) |
 | `https://share.carter.md/<id>.md` | Canonical Markdown, `text/markdown`, byte-for-byte |
 | `https://share.carter.md/<id>.pdf` | PDF printed from the reader's own stylesheet |
+| `https://share.carter.md/<id>/files/<name>` | An attached context file's exact Markdown (`/pdf` suffix for its PDF) |
 | `/new`, `/manage`, `/manage/<id>`, `/login` | Owner-only publishing, editing, revoking |
 | `POST /api/share` | Bearer-authenticated publish for scripts and agents |
 
@@ -101,7 +102,12 @@ token itself), valid for 30 days. The API accepts the same token as
   and publish. The result page shows the reader, `.md`, and PDF URLs with
   copy buttons. `/manage` lists everything; `/manage/<id>` edits the Markdown
   in place (same ID) and toggles **Revoke access**.
-- **CLI:** `npm run share -- proposal.md` reads `SHARE_OWNER_TOKEN` from the
+- **Attachments:** `.md` context files (up to 20, 900 KB total with the
+  document) can be added on `/new` and `/manage/<id>`. Readers see them in a
+  file tree beside the document and open each in a popup viewer with the same
+  Reader/Markdown toggle and copy/download actions.
+- **CLI:** `npm run share -- design.md spec.md strategy.md` (first file is the
+  document, the rest are attachments) reads `SHARE_OWNER_TOKEN` from the
   environment or `.env.local`, posts the file, and prints the three URLs. Set
   `SHARE_API_ORIGIN` to target a preview deployment or `http://localhost:3000/share`.
 - **API:**

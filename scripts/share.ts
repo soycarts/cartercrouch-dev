@@ -1,12 +1,13 @@
-// Publish a Markdown file to share.carter.md from the terminal:
+// Publish a Markdown file to share.carter.md from the terminal, optionally
+// with context files the reader can download alongside it:
 //
-//   npm run share -- proposal.md
+//   npm run share -- design.md spec.md strategy.md
 //
 // Reads SHARE_OWNER_TOKEN (and optionally SHARE_API_ORIGIN) from the
 // environment or .env.local, POSTs the file, and prints the three URLs.
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 
 async function loadDotEnv() {
   const path = resolve(process.cwd(), ".env.local");
@@ -18,9 +19,9 @@ async function loadDotEnv() {
 }
 
 async function main() {
-  const file = process.argv[2];
+  const [file, ...extra] = process.argv.slice(2);
   if (!file) {
-    console.error("usage: npm run share -- <file.md>");
+    console.error("usage: npm run share -- <document.md> [context.md ...]");
     process.exit(2);
   }
   await loadDotEnv();
@@ -31,10 +32,13 @@ async function main() {
   }
   const origin = (process.env.SHARE_API_ORIGIN ?? "https://share.carter.md").replace(/\/$/, "");
   const markdown = await readFile(resolve(file), "utf8");
+  const attachments = await Promise.all(
+    extra.map(async (f) => ({ name: basename(f), markdown: await readFile(resolve(f), "utf8") })),
+  );
   const res = await fetch(`${origin}/api/share`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "text/markdown; charset=utf-8" },
-    body: markdown,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ markdown, attachments }),
   });
   const body = (await res.json()) as Record<string, string>;
   if (!res.ok) {
