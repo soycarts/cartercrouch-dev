@@ -9,6 +9,11 @@ const onShareHost = [{ type: "host" as const, value: SHARE_HOST }];
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  // The Chromium binary is loaded at runtime from node_modules/.../bin, which
+  // output tracing cannot see through the dynamic import — include it by hand.
+  outputFileTracingIncludes: {
+    "/share/[id]/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   async rewrites() {
     return {
       beforeFiles: [
