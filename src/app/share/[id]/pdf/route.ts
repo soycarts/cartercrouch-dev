@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { getStore, getPublicDocument, downloadFilename } from "@/lib/share";
+import { getStore, getPublicDocument, downloadFilename, selfOrigin } from "@/lib/share";
 import { renderPdf } from "@/lib/share/pdf";
 
 // GET /:id.pdf — generated on demand from the reader's print view.
@@ -20,12 +19,10 @@ export async function GET(
     });
   }
 
-  // Print the page on this same deployment (not the public origin), so
-  // preview deployments and local dev render themselves.
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const pageUrl = `${proto}://${host}/share/${doc.id}?print=1`;
+  // Print the page on this same deployment (not the public origin, which may
+  // not resolve yet), using an origin from the environment rather than the
+  // request's Host header so a client can't point Chromium elsewhere.
+  const pageUrl = `${selfOrigin()}/share/${doc.id}?print=1`;
 
   let pdf: Uint8Array;
   try {

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { selfFetchHeaders } from "./urls";
 
 // Prints the reader page itself (with ?print=1, which strips the controls)
 // through headless Chromium, so the PDF shares every token, font, and rule
@@ -38,6 +39,7 @@ export async function renderPdf(pageUrl: string): Promise<Uint8Array> {
   const browser = await launch();
   try {
     const page = await browser.newPage();
+    await page.setExtraHTTPHeaders(selfFetchHeaders());
     await page.emulateMediaType("print");
     await page.goto(pageUrl, { waitUntil: "networkidle0", timeout: 30_000 });
     await page.evaluateHandle("document.fonts.ready");

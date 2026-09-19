@@ -1,5 +1,5 @@
 import { isOwnerConfigured, isOwnerSession } from "@/lib/share/auth";
-import { internalBase } from "@/lib/share/urls";
+import { internalBase, safeNextPath } from "@/lib/share/urls";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./LoginForm";
 
@@ -11,7 +11,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  if (await isOwnerSession()) redirect(`${internalBase()}${next ?? "/new"}`);
+  if (await isOwnerSession()) redirect(`${internalBase()}${safeNextPath(next)}`);
   return (
     <div className="shell py-16 sm:py-24">
       <p className="kicker text-ink-muted">Owner</p>

@@ -26,3 +26,23 @@ describe("share urls", () => {
     expect(downloadFilename("Café", "id", "md")).toBe("cafe.md");
   });
 });
+
+describe("redirect and self-origin safety", () => {
+  it("only allows in-app next paths", async () => {
+    const { safeNextPath, selfOrigin } = await import("../urls");
+    expect(safeNextPath("/manage/abc")).toBe("/manage/abc");
+    expect(safeNextPath("https://evil.example")).toBe("/new");
+    expect(safeNextPath("//evil.example")).toBe("/new");
+    expect(safeNextPath("/\\evil.example")).toBe("/new");
+    expect(safeNextPath(undefined)).toBe("/new");
+    process.env.VERCEL_URL = "example-abc.vercel.app";
+    expect(selfOrigin()).toBe("https://example-abc.vercel.app");
+    process.env.VERCEL_ENV = "production";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "cartercrouch.dev";
+    expect(selfOrigin()).toBe("https://cartercrouch.dev");
+    delete process.env.VERCEL_URL;
+    delete process.env.VERCEL_ENV;
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    expect(selfOrigin()).toMatch(/^http:\/\/localhost:\d+$/);
+  });
+});

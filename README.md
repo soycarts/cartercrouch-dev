@@ -124,7 +124,12 @@ sanitized with the GitHub schema.
 local Chrome elsewhere), loads the reader with `?print=1`, and prints A4 with
 the `@media print` rules in `globals.css`. Links stay clickable. Output is
 cached at the CDN for 60 s. Failures return a 502 text response and never
-affect the HTML or `.md` routes.
+affect the HTML or `.md` routes. The printer fetches the page from this
+deployment's own origin taken from the environment (production domain in
+production, `VERCEL_URL` in previews), never from the request's Host header.
+Preview deployments are behind Vercel Authentication, so PDFs there need
+**Protection Bypass for Automation** enabled in the project settings; the
+generated `VERCEL_AUTOMATION_BYPASS_SECRET` is picked up automatically.
 
 ### Domain / DNS
 
