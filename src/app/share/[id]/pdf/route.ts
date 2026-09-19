@@ -1,4 +1,4 @@
-import { getStore, getPublicDocument, downloadFilename } from "@/lib/share";
+import { getStore, getPublicDocument, documentFilename } from "@/lib/share";
 import { pdfNotFound, pdfResponse } from "@/lib/share/pdf-response";
 
 // GET /:id.pdf — generated on demand from the reader's print view.
@@ -16,6 +16,6 @@ export async function GET(
   return pdfResponse(
     request,
     `/share/${doc.id}?print=1`,
-    downloadFilename(doc.title, doc.id, "pdf"),
+    documentFilename(doc, "pdf"),
   );
 }

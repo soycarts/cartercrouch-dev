@@ -121,7 +121,10 @@ token itself), valid for 30 days. The API accepts the same token as
   ```
 
 The title is inferred from the first H1; the OpenGraph description from the
-first paragraph. Raw HTML in Markdown is dropped, and the rendered tree is
+first paragraph. The filename (shown in the file tree and used for the `.md`
+and PDF downloads) is separate: set it in the form or the API's `filename`
+field, or leave it blank to derive it from the title. The CLI uses the name
+of the file you pass. Raw HTML in Markdown is dropped, and the rendered tree is
 sanitized with the GitHub schema.
 
 ### PDF generation

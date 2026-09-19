@@ -38,7 +38,7 @@ async function main() {
   const res = await fetch(`${origin}/api/share`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ markdown, attachments }),
+    body: JSON.stringify({ markdown, filename: basename(file), attachments }),
   });
   const body = (await res.json()) as Record<string, string>;
   if (!res.ok) {

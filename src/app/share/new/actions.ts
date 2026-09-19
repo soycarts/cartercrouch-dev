@@ -14,14 +14,22 @@ import {
 
 export type PublishState = { error?: string; markdown?: string };
 
-function inputFrom(formData: FormData): { markdown: string; attachments: unknown } {
+function inputFrom(formData: FormData): {
+  markdown: string;
+  attachments: unknown;
+  filename: string;
+} {
   let attachments: unknown = [];
   try {
     attachments = JSON.parse(String(formData.get("attachments") || "[]"));
   } catch {
     attachments = undefined; // fails validation with a clear message
   }
-  return { markdown: String(formData.get("markdown") ?? ""), attachments };
+  return {
+    markdown: String(formData.get("markdown") ?? ""),
+    attachments,
+    filename: String(formData.get("filename") ?? ""),
+  };
 }
 
 function fail(err: unknown, markdown: string): PublishState {

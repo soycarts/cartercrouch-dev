@@ -12,18 +12,21 @@ export function DocumentForm({
   action,
   id,
   initialMarkdown = "",
+  initialFilename = "",
   initialAttachments = [],
   submitLabel,
 }: {
   action: Action;
   id?: string;
   initialMarkdown?: string;
+  initialFilename?: string;
   initialAttachments?: Attachment[];
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState<PublishState, FormData>(action, {});
   const [markdown, setMarkdown] = useState(state.markdown ?? initialMarkdown);
   const [attachments, setAttachments] = useState<Attachment[]>(initialAttachments);
+  const [filename, setFilename] = useState(initialFilename);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewing, startPreview] = useTransition();
 
@@ -55,7 +58,10 @@ export function DocumentForm({
             className="sr-only"
             onChange={async (e) => {
               const f = e.target.files?.[0];
-              if (f) setMarkdown(await f.text());
+              if (f) {
+                setMarkdown(await f.text());
+                if (!filename) setFilename(f.name);
+              }
               e.target.value = "";
             }}
           />
@@ -70,6 +76,19 @@ export function DocumentForm({
         spellCheck={false}
         className="share-field share-textarea mt-2"
         placeholder={"# Title\n\nBody…"}
+      />
+
+      <label htmlFor="filename" className="kicker mt-8 block text-ink-muted">
+        Filename
+      </label>
+      <input
+        id="filename"
+        name="filename"
+        value={filename}
+        onChange={(e) => setFilename(e.target.value)}
+        placeholder="derived from the title if blank"
+        pattern="[A-Za-z0-9][A-Za-z0-9._ \-]{0,78}\.md"
+        className="share-field mt-2 max-w-md"
       />
 
       <div className="mt-8 flex flex-wrap items-baseline justify-between gap-4">

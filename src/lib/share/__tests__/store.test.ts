@@ -71,6 +71,31 @@ describe("share store", () => {
     expect(updated.attachments).toEqual([]);
   });
 
+  it("accepts an owner-chosen filename separate from the title", async () => {
+    const store = new MemoryShareStore();
+    const { documentFilename } = await import("../store");
+    const auto = await publishDocument(store, { markdown: "# Design Doc" });
+    expect(auto.filename).toBeNull();
+    expect(documentFilename(auto)).toBe("design-doc.md");
+    const named = await publishDocument(store, {
+      markdown: "# Design Doc",
+      filename: "agentvillage_data_design_doc.md",
+    });
+    expect(named.title).toBe("Design Doc");
+    expect(documentFilename(named)).toBe("agentvillage_data_design_doc.md");
+    expect(documentFilename(named, "pdf")).toBe("agentvillage_data_design_doc.pdf");
+    await expect(
+      publishDocument(store, { markdown: "# D", filename: "notes.txt" }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      publishDocument(store, {
+        markdown: "# D",
+        filename: "spec.md",
+        attachments: [{ name: "spec.md", markdown: "x" }],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
   it("lists newest first for the owner", async () => {
     const store = new MemoryShareStore();
     const a = await publishDocument(store, { markdown: "# A" });

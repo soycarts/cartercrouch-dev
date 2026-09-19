@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import {
   attachmentPdfUrl,
   attachmentUrl,
-  downloadFilename,
+  documentFilename,
   findAttachment,
   getStore,
   getPublicDocument,
@@ -124,7 +124,7 @@ export default async function SharePage({
       {files.length > 0 ? (
         <div className="share-layout">
           <AttachmentTree
-            documentName={downloadFilename(rendered.title, doc.id, "md")}
+            documentName={documentFilename(doc)}
             files={files}
           />
           <div className="min-w-0">{viewer}</div>

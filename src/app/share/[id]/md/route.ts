@@ -1,4 +1,4 @@
-import { getStore, getPublicDocument, downloadFilename } from "@/lib/share";
+import { getStore, getPublicDocument, documentFilename } from "@/lib/share";
 
 // GET /:id.md — the canonical Markdown, byte-for-byte. `?download=1` turns it
 // into an attachment with a filename derived from the title.
@@ -29,7 +29,7 @@ export async function GET(
   if (wantsDownload) {
     headers.set(
       "Content-Disposition",
-      `attachment; filename="${downloadFilename(doc.title, doc.id, "md")}"`,
+      `attachment; filename="${documentFilename(doc, "md")}"`,
     );
   }
   return new Response(doc.markdown, { headers });

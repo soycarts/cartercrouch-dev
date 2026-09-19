@@ -1,5 +1,6 @@
 import { generateShareId, isShareId } from "./ids";
 import { inferTitle } from "./markdown";
+import { downloadFilename } from "./urls";
 
 /** A context file shared alongside the document. Markdown only. */
 export type Attachment = {
@@ -12,7 +13,10 @@ export type SharedDocument = {
   /** The canonical Markdown, byte-for-byte as published. */
   markdown: string;
   attachments: Attachment[];
+  /** Inferred from the first H1. */
   title: string | null;
+  /** Owner-chosen filename (ending in .md); null means derive from the title. */
+  filename: string | null;
   createdAt: string;
   updatedAt: string;
   revokedAt: string | null;
@@ -56,7 +60,19 @@ export const ATTACHMENT_NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,78}\.md$/;
 export type DocumentInput = {
   markdown: unknown;
   attachments?: unknown;
+  filename?: unknown;
 };
+
+function validateFilename(input: unknown): string | null {
+  if (input === undefined || input === null) return null;
+  if (typeof input !== "string") throw new ShareError("Filename must be text.", 400);
+  const name = input.trim();
+  if (!name) return null;
+  if (!ATTACHMENT_NAME.test(name)) {
+    throw new ShareError(`"${name}" is not a valid .md filename.`, 400);
+  }
+  return name;
+}
 
 function validateAttachments(input: unknown): Attachment[] {
   if (input === undefined || input === null) return [];
@@ -80,9 +96,17 @@ function validateAttachments(input: unknown): Attachment[] {
   });
 }
 
-function validateInput(input: DocumentInput): { markdown: string; attachments: Attachment[] } {
+function validateInput(input: DocumentInput): {
+  markdown: string;
+  attachments: Attachment[];
+  filename: string | null;
+} {
   const markdown = validateMarkdown(input.markdown);
   const attachments = validateAttachments(input.attachments);
+  const filename = validateFilename(input.filename);
+  if (filename && attachments.some((a) => a.name.toLowerCase() === filename.toLowerCase())) {
+    throw new ShareError(`An attachment is also named "${filename}".`, 400);
+  }
   const total = attachments.reduce(
     (n, a) => n + Buffer.byteLength(a.markdown, "utf8"),
     Buffer.byteLength(markdown, "utf8"),
@@ -90,7 +114,7 @@ function validateInput(input: DocumentInput): { markdown: string; attachments: A
   if (total > MAX_TOTAL_BYTES) {
     throw new ShareError("Document plus attachments exceed 900 KB.", 413);
   }
-  return { markdown, attachments };
+  return { markdown, attachments, filename };
 }
 
 function validateMarkdown(markdown: unknown): string {
@@ -110,13 +134,14 @@ export async function publishDocument(
   store: ShareStore,
   input: DocumentInput,
 ): Promise<SharedDocument> {
-  const { markdown: body, attachments } = validateInput(input);
+  const { markdown: body, attachments, filename } = validateInput(input);
   const now = new Date().toISOString();
   const doc: SharedDocument = {
     id: generateShareId(),
     markdown: body,
     attachments,
     title: await inferTitle(body),
+    filename,
     createdAt: now,
     updatedAt: now,
     revokedAt: null,
@@ -134,12 +159,13 @@ export async function updateDocument(
 ): Promise<SharedDocument> {
   const existing = await store.get(id);
   if (!existing) throw new ShareError("Document not found.", 404);
-  const { markdown: body, attachments } = validateInput(input);
+  const { markdown: body, attachments, filename } = validateInput(input);
   const doc: SharedDocument = {
     ...existing,
     markdown: body,
     attachments,
     title: await inferTitle(body),
+    filename,
     updatedAt: new Date().toISOString(),
   };
   await store.put(doc);
@@ -172,7 +198,13 @@ export async function getPublicDocument(
   if (!isShareId(id)) return null;
   const doc = await store.get(id);
   if (!doc || doc.revokedAt) return null;
-  return { ...doc, attachments: doc.attachments ?? [] };
+  return { ...doc, attachments: doc.attachments ?? [], filename: doc.filename ?? null };
+}
+
+/** The document's own filename: chosen by the owner, else derived from the title. */
+export function documentFilename(doc: SharedDocument, ext: "md" | "pdf" = "md"): string {
+  if (doc.filename) return ext === "md" ? doc.filename : doc.filename.replace(/\.md$/i, ".pdf");
+  return downloadFilename(doc.title, doc.id, ext);
 }
 
 export function findAttachment(doc: SharedDocument, name: string): Attachment | null {

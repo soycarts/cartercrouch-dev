@@ -96,6 +96,7 @@ export default async function ManageDocumentPage({
           action={update}
           id={id}
           initialMarkdown={doc.markdown}
+          initialFilename={doc.filename ?? ""}
           initialAttachments={doc.attachments ?? []}
           submitLabel="Save changes"
         />
