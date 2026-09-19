@@ -261,3 +261,358 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   share.carter.md — the document reader. Same tokens, same rail; only the
+   prose rules below are new. Every element here comes from sanitized
+   Markdown, so the selectors are by tag on purpose.
+   --------------------------------------------------------------------------- */
+@layer components {
+  .link-mono--copy::after {
+    content: none;
+  }
+
+  .prose-body {
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--ink);
+    max-width: 68ch;
+    overflow-wrap: anywhere;
+  }
+
+  .prose-body > :first-child {
+    margin-top: 0;
+  }
+
+  .prose-body p,
+  .prose-body ul,
+  .prose-body ol,
+  .prose-body blockquote,
+  .prose-body pre,
+  .prose-body table,
+  .prose-body hr {
+    margin-block: 0 1.15em;
+  }
+
+  .prose-body h1,
+  .prose-body h2,
+  .prose-body h3,
+  .prose-body h4 {
+    margin-block: 1.6em 0.55em;
+  }
+
+  .prose-body h1 {
+    font-size: 1.9rem;
+  }
+
+  .prose-body h2 {
+    font-size: 1.5rem;
+  }
+
+  .prose-body h3 {
+    font-size: 1.2rem;
+  }
+
+  .prose-body h4,
+  .prose-body h5,
+  .prose-body h6 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .prose-body strong {
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .prose-body a {
+    text-decoration: underline;
+    text-decoration-color: var(--rule-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: text-decoration-color 180ms var(--ease-out);
+  }
+
+  .prose-body a:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+  }
+
+  .prose-body ul,
+  .prose-body ol {
+    padding-left: 1.4em;
+  }
+
+  .prose-body ul {
+    list-style: none;
+  }
+
+  .prose-body ul > li {
+    position: relative;
+  }
+
+  .prose-body ul > li::before {
+    content: "–";
+    position: absolute;
+    left: -1.4em;
+    color: var(--ink-muted);
+  }
+
+  .prose-body ul > li:has(> input[type="checkbox"])::before {
+    content: none;
+  }
+
+  .prose-body ol {
+    list-style: decimal;
+  }
+
+  .prose-body ol > li::marker {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--ink-muted);
+  }
+
+  .prose-body li + li {
+    margin-top: 0.35em;
+  }
+
+  .prose-body li > ul,
+  .prose-body li > ol {
+    margin-block: 0.35em 0;
+  }
+
+  .prose-body input[type="checkbox"] {
+    margin: 0 0.45em 0 -1.4em;
+    accent-color: var(--accent);
+    vertical-align: 1px;
+  }
+
+  .prose-body blockquote {
+    padding-left: 1.1rem;
+    border-left: 2px solid var(--accent);
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  .prose-body blockquote p:last-child {
+    margin-bottom: 0;
+  }
+
+  .prose-body code {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: color-mix(in srgb, var(--rule) 45%, transparent);
+    padding: 0.1em 0.35em;
+  }
+
+  .prose-body pre {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.55;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--rule);
+    background: var(--paper-raised);
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .prose-body pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .prose-body hr {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin-block: 2em;
+  }
+
+  .prose-body img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Tables scroll sideways on narrow screens rather than breaking words. */
+  .prose-body table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: normal;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .prose-body th {
+    white-space: nowrap;
+  }
+
+  .prose-body th,
+  .prose-body td {
+    min-width: 9ch;
+    padding: 0.55em 1em 0.55em 0;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .prose-body th {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border-bottom-color: var(--rule-strong);
+  }
+
+  .prose-body tr:last-child td {
+    border-bottom-color: var(--rule-strong);
+  }
+
+  /* Exact source view. */
+  .share-source {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--rule);
+    background: var(--paper-raised);
+    overflow-x: auto;
+    white-space: pre;
+    tab-size: 4;
+  }
+}
+
+/* Print / PDF. The PDF route prints this same page with ?print=1, which
+   drops the controls server-side; this handles a viewer's own Cmd+P too. */
+@media print {
+  html {
+    font-size: 11pt;
+    background: #fff;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .no-print,
+  .share-controls {
+    display: none !important;
+  }
+
+  .shell {
+    width: 100%;
+    margin: 0;
+  }
+
+  .rail {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .share-section {
+    break-inside: auto;
+  }
+
+  .share-section > h2,
+  .prose-body h1,
+  .prose-body h2,
+  .prose-body h3,
+  .prose-body h4 {
+    break-after: avoid;
+  }
+
+  .prose-body pre,
+  .prose-body table,
+  .prose-body blockquote,
+  .prose-body li {
+    break-inside: avoid;
+  }
+
+  .prose-body pre {
+    white-space: pre-wrap;
+    overflow: visible;
+  }
+
+  .prose-body table {
+    display: table;
+    width: 100%;
+  }
+
+  .prose-body a {
+    color: var(--ink);
+    text-decoration-color: var(--rule);
+  }
+}
+
+/* When the page is rendered for PDF we don't wait for prefers-print media
+   detection: the .share-print wrapper mirrors the print rules on screen so
+   the headless browser can be given a plain viewport if needed. */
+.share-print .rail {
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 28px;
+}
+
+/* Owner forms: the same hairline language, no rounded SaaS chrome. */
+@layer components {
+  .share-field {
+    display: block;
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    outline: none;
+    transition: border-color 180ms var(--ease-out);
+  }
+
+  .share-field:focus {
+    border-color: var(--ink);
+  }
+
+  .share-textarea {
+    min-height: 24rem;
+    resize: vertical;
+    tab-size: 2;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .share-button {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--paper);
+    background: var(--ink);
+    padding: 0.8rem 1.4rem;
+    border: 1px solid var(--ink);
+    cursor: pointer;
+    transition: background 180ms var(--ease-out), border-color 180ms var(--ease-out);
+  }
+
+  .share-button:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .share-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}

@@ -7,7 +7,7 @@ import {
   RULE,
   ACCENT,
   loadOgFonts,
-} from "../og-fonts/shared";
+} from "../../og-fonts/shared";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
