@@ -5,8 +5,18 @@ import { DocumentViewer, type ViewerDocument } from "./DocumentViewer";
 
 export type ViewerAttachment = ViewerDocument & { name: string; title: string | null };
 
-/** File tree of context files; clicking one opens it in a popup viewer. */
-export function AttachmentTree({ files }: { files: ViewerAttachment[] }) {
+/**
+ * File tree: the document itself first (current, closes any popup), then
+ * its context files indented beneath. Clicking a context file opens it in a
+ * popup viewer. Hidden entirely when there are no attachments.
+ */
+export function AttachmentTree({
+  documentName,
+  files,
+}: {
+  documentName: string;
+  files: ViewerAttachment[];
+}) {
   const [open, setOpen] = useState<number | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -22,12 +32,27 @@ export function AttachmentTree({ files }: { files: ViewerAttachment[] }) {
 
   return (
     <>
-      <nav aria-label="Context files" className="share-tree no-print">
+      <nav aria-label="Files" className="share-tree no-print">
         <p className="kicker text-ink-muted">Files</p>
         <ul>
+          <li>
+            <button
+              type="button"
+              onClick={() => setOpen(null)}
+              aria-current={open === null ? "true" : undefined}
+              className="share-tree__item share-tree__item--doc"
+            >
+              {documentName}
+            </button>
+          </li>
           {files.map((f, i) => (
             <li key={f.name}>
-              <button type="button" onClick={() => setOpen(i)} className="share-tree__item">
+              <button
+                type="button"
+                onClick={() => setOpen(i)}
+                aria-current={open === i ? "true" : undefined}
+                className="share-tree__item share-tree__item--file"
+              >
                 {f.name}
               </button>
             </li>

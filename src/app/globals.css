@@ -718,13 +718,26 @@
     transition: color 180ms var(--ease-out);
   }
 
-  .share-tree__item::before {
+  .share-tree__item--file {
+    padding-left: 1.1rem;
+  }
+
+  .share-tree__item--file::before {
     content: "↳ ";
     color: var(--ink-muted);
   }
 
   .share-tree__item:hover {
     color: var(--accent);
+  }
+
+  .share-tree__item[aria-current="true"] {
+    color: var(--ink);
+    border-bottom-color: var(--rule-strong);
+  }
+
+  .share-tree__item:not([aria-current="true"]) {
+    color: var(--ink-soft);
   }
 
   .share-dialog {
