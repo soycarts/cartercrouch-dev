@@ -11,8 +11,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   // The Chromium binary is loaded at runtime from node_modules/.../bin, which
   // output tracing cannot see through the dynamic import — include it by hand.
+  // The key is a glob, so "[id]" would be a character class; use a wildcard.
   outputFileTracingIncludes: {
-    "/share/[id]/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/share/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   async rewrites() {
     return {
