@@ -8,7 +8,7 @@ import {
   pdfUrl,
   readerUrl,
 } from "@/lib/share";
-import { formatDate } from "@/components/share/ShareHeader";
+import { formatDate } from "@/lib/share/dates";
 import { CopyButton } from "@/components/share/CopyButton";
 import { DocumentForm } from "@/components/share/DocumentForm";
 import { revoke, update } from "../../new/actions";

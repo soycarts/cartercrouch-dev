@@ -1,6 +1,6 @@
 import { requireOwner } from "@/lib/share/owner";
 import { getStore, internalBase } from "@/lib/share";
-import { formatDate } from "@/components/share/ShareHeader";
+import { formatDate } from "@/lib/share/dates";
 import { logout } from "../login/actions";
 
 export const dynamic = "force-dynamic";
