@@ -3,11 +3,20 @@
 //
 //   npm run share -- design.md spec.md strategy.md
 //
+// Or replace a document that is already published, keeping its URL — the
+// context files are replaced wholesale too, so pass every one you still want:
+//
+//   npm run share -- --update <id> design.md spec.md strategy.md
+//   npm run share -- --update=<id> design.md
+//
 // Reads SHARE_OWNER_TOKEN (and optionally SHARE_API_ORIGIN) from the
-// environment or .env.local, POSTs the file, and prints the three URLs.
+// environment or .env.local, and prints the same three URLs either way.
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
+
+const USAGE =
+  "usage: npm run share -- [--update <id>] <document.md> [context.md ...]";
 
 async function loadDotEnv() {
   const path = resolve(process.cwd(), ".env.local");
@@ -18,10 +27,29 @@ async function loadDotEnv() {
   }
 }
 
+/** Pull `--update <id>` / `--update=<id>` out of the argument list. */
+function parseArgs(argv: string[]): { id: string | null; files: string[] } {
+  const files: string[] = [];
+  let id: string | null = null;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--update") {
+      id = argv[i + 1] ?? null;
+      i += 1;
+    } else if (arg.startsWith("--update=")) {
+      id = arg.slice("--update=".length);
+    } else {
+      files.push(arg);
+    }
+  }
+  return { id: id || null, files };
+}
+
 async function main() {
-  const [file, ...extra] = process.argv.slice(2);
-  if (!file) {
-    console.error("usage: npm run share -- <document.md> [context.md ...]");
+  const { id, files } = parseArgs(process.argv.slice(2));
+  const [file, ...extra] = files;
+  if (!file || (process.argv.includes("--update") && !id)) {
+    console.error(USAGE);
     process.exit(2);
   }
   await loadDotEnv();
@@ -35,17 +63,19 @@ async function main() {
   const attachments = await Promise.all(
     extra.map(async (f) => ({ name: basename(f), markdown: await readFile(resolve(f), "utf8") })),
   );
-  const res = await fetch(`${origin}/api/share`, {
-    method: "POST",
+  const res = await fetch(id ? `${origin}/api/share/${id}` : `${origin}/api/share`, {
+    method: id ? "PUT" : "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ markdown, filename: basename(file), attachments }),
   });
   const body = (await res.json()) as Record<string, string>;
   if (!res.ok) {
-    console.error(`Publish failed (${res.status}): ${body.error ?? "unknown error"}`);
+    const what = id ? "Update" : "Publish";
+    console.error(`${what} failed (${res.status}): ${body.error ?? "unknown error"}`);
     process.exit(1);
   }
-  console.log(`Published ✓\n\n${body.url}\n${body.markdownUrl}\n${body.pdfUrl}`);
+  const what = id ? "Updated" : "Published";
+  console.log(`${what} ✓\n\n${body.url}\n${body.markdownUrl}\n${body.pdfUrl}`);
 }
 
 main().catch((err) => {

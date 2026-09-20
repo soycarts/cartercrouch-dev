@@ -1,4 +1,8 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+// The update route revalidates the reader path; outside a request scope that
+// is meaningless, and calling the route handler directly is outside one.
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 process.env.SHARE_STORE = "memory";
 process.env.SHARE_OWNER_TOKEN = "0123456789abcdef0123456789abcdef";
@@ -85,5 +89,89 @@ describe("attachment routes", () => {
     expect(await ok.text()).toBe("# Spec\n");
     const missing = await GET(new Request("http://x/"), { params: Promise.resolve({ id, name: "nope.md" }) });
     expect(missing.status).toBe(404);
+  });
+});
+
+describe("update route", () => {
+  let id: string;
+  let PUT: typeof import("@/app/share/api/share/[id]/route").PUT;
+  let readMarkdown: typeof import("@/app/share/[id]/md/route").GET;
+
+  const put = (body: unknown, target: string, auth = true) =>
+    PUT(
+      new Request(`http://x/api/share/${target}`, {
+        method: "PUT",
+        headers: {
+          ...(auth ? { authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}` } : {}),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id: target }) },
+    );
+
+  beforeAll(async () => {
+    ({ PUT } = await import("@/app/share/api/share/[id]/route"));
+    ({ GET: readMarkdown } = await import("@/app/share/[id]/md/route"));
+    const { POST } = await import("@/app/share/api/share/route");
+    const res = await POST(
+      new Request("http://x/api/share", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          markdown: "# First title\n\nBody.\n",
+          attachments: [{ name: "old.md", markdown: "# Old\n" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    ({ id } = await res.json());
+  });
+
+  it("rejects an unauthenticated update", async () => {
+    const res = await put({ markdown: "# Nope\n" }, id, false);
+    expect(res.status).toBe(401);
+  });
+
+  it("404s for unknown and malformed ids", async () => {
+    expect((await put({ markdown: "# x\n" }, "1".repeat(22))).status).toBe(404);
+    expect((await put({ markdown: "# x\n" }, "not-an-id")).status).toBe(404);
+  });
+
+  it("rejects an empty document", async () => {
+    expect((await put({ markdown: "   " }, id)).status).toBe(400);
+  });
+
+  it("replaces the markdown, title, and attachments, keeping the id and URLs", async () => {
+    const { getStore } = await import("@/lib/share");
+    const before = await getStore().get(id);
+    const res = await put(
+      {
+        markdown: "# Second title\n\nReplaced.\n",
+        filename: "second.md",
+        attachments: [{ name: "new.md", markdown: "# New\n" }],
+      },
+      id,
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(id);
+    expect(body.url).toBe(`https://share.carter.md/${id}`);
+    expect(body.markdownUrl).toBe(`https://share.carter.md/${id}.md`);
+    expect(body.pdfUrl).toBe(`https://share.carter.md/${id}.pdf`);
+
+    const after = await getStore().get(id);
+    expect(after!.title).toBe("Second title");
+    expect(after!.createdAt).toBe(before!.createdAt);
+    expect(Date.parse(after!.updatedAt)).toBeGreaterThanOrEqual(Date.parse(before!.updatedAt));
+    expect(after!.attachments.map((a) => a.name)).toEqual(["new.md"]);
+
+    const served = await readMarkdown(new Request("http://x/"), {
+      params: Promise.resolve({ id }),
+    });
+    expect(await served.text()).toBe("# Second title\n\nReplaced.\n");
   });
 });

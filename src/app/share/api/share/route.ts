@@ -7,6 +7,7 @@ import {
   publishDocument,
   readerUrl,
 } from "@/lib/share";
+import { readDocumentInput } from "@/lib/share/input";
 
 export const dynamic = "force-dynamic";
 
@@ -15,24 +16,15 @@ export const dynamic = "force-dynamic";
 //   Body: text/markdown (raw), or application/json
 //         {"markdown": "...", "filename": "design.md",
 //          "attachments": [{"name": "spec.md", "markdown": "..."}]}
+// PUT /api/share/:id replaces an existing one; see [id]/route.ts.
 export async function POST(request: Request) {
   if (!verifyBearer(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let input: { markdown: unknown; attachments?: unknown; filename?: unknown };
-  const type = request.headers.get("content-type") ?? "";
+  let input;
   try {
-    if (type.includes("application/json")) {
-      const body = (await request.json()) as {
-        markdown?: unknown;
-        attachments?: unknown;
-        filename?: unknown;
-      };
-      input = { markdown: body.markdown, attachments: body.attachments, filename: body.filename };
-    } else {
-      input = { markdown: await request.text() };
-    }
+    input = await readDocumentInput(request);
   } catch {
     return Response.json({ error: "Unreadable body" }, { status: 400 });
   }
