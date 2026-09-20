@@ -76,7 +76,7 @@ export function AttachmentTree({
                 Close ×
               </button>
             </div>
-            <DocumentViewer key={current.name} doc={current} compact />
+            <DocumentViewer key={current.name} doc={current} compact title={current.title} />
           </div>
         )}
       </dialog>

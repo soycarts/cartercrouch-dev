@@ -11,14 +11,13 @@ export function ShareHeader({
   const created = formatDate(createdAt);
   const updated = updatedAt.slice(0, 10) !== createdAt.slice(0, 10) ? formatDate(updatedAt) : null;
   return (
-    <div className="pt-10 pb-8 sm:pt-14 sm:pb-10">
+    <div className="pt-10 pb-6 sm:pt-14 sm:pb-8">
       <div className="kicker flex flex-wrap items-baseline gap-x-4 gap-y-1 text-ink-muted">
         <span>{created}</span>
         {updated && <span>Updated {updated}</span>}
       </div>
-      <h1 className="mt-5 max-w-[20ch] text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">
-        {title ?? "Untitled document"}
-      </h1>
+      {/* The lifted H1, rendered once, here — never again in the body. */}
+      <h1 className="share-title mt-4">{title ?? "Untitled document"}</h1>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { ShareHeader } from "@/components/share/ShareHeader";
 import { Prose } from "@/components/share/Prose";
 import { DocumentViewer } from "@/components/share/DocumentViewer";
 import { AttachmentTree, type ViewerAttachment } from "@/components/share/AttachmentTree";
+import { TableOfContents } from "@/components/share/TableOfContents";
 
 // Always render from the store; documents can change or be revoked at any time.
 export const dynamic = "force-dynamic";
@@ -118,15 +119,19 @@ export default async function SharePage({
     />
   );
 
+  // The side pane carries the file tree (when there are attachments) above
+  // the contents list. With neither, the prose gets the whole measure.
+  const hasPane = files.length > 0 || rendered.toc.length > 1;
+
   return (
     <div className="shell">
       <ShareHeader title={rendered.title} createdAt={doc.createdAt} updatedAt={doc.updatedAt} />
-      {files.length > 0 ? (
+      {hasPane ? (
         <div className="share-layout">
-          <AttachmentTree
-            documentName={documentFilename(doc)}
-            files={files}
-          />
+          <aside className="share-pane">
+            <AttachmentTree documentName={documentFilename(doc)} files={files} />
+            <TableOfContents items={rendered.toc} />
+          </aside>
           <div className="min-w-0">{viewer}</div>
         </div>
       ) : (

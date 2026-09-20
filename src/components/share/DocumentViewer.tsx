@@ -80,10 +80,13 @@ export function DocumentViewer({
   doc,
   initialView = "reader",
   compact = false,
+  title = null,
 }: {
   doc: ViewerDocument;
   initialView?: View;
   compact?: boolean;
+  /** The lifted H1, for the popup — the main page prints its own. */
+  title?: string | null;
 }) {
   const [view, setView] = useState<View>(initialView);
   const tab = (target: View, label: string) => (
@@ -100,6 +103,7 @@ export function DocumentViewer({
 
   return (
     <div className={compact ? "share-viewer share-viewer--compact" : "share-viewer"}>
+      {title && <h1 className="share-title share-title--popup">{title}</h1>}
       <div className="share-bar no-print">
         <div className="share-toggle" role="tablist">
           {tab("reader", "Reader")}

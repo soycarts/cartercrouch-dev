@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import remarkRehype from "remark-rehype";
 import rehypeSlug from "rehype-slug";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -21,30 +22,68 @@ const schema = {
   },
 };
 
+/**
+ * Put every table in its own horizontally scrollable box so a wide table
+ * scrolls instead of pushing the column (or the PDF page) out of shape.
+ *
+ * This runs *after* rehype-sanitize on purpose: the wrapper is ours, not the
+ * document's, so it needs no place in the schema and no attribute of it can
+ * come from the Markdown.
+ */
+function rehypeWrapTables() {
+  return (root: HastRoot) => {
+    const wrap = (nodes: RootContent[]): RootContent[] =>
+      nodes.map((node) => {
+        if (node.type !== "element") return node;
+        node.children = wrap(node.children) as Element["children"];
+        if (node.tagName !== "table") return node;
+        return {
+          type: "element",
+          tagName: "div",
+          properties: { className: ["table-scroll"] },
+          children: [node],
+        } satisfies Element;
+      });
+    root.children = wrap(root.children);
+  };
+}
+
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
+  // Obsidian renders a single newline as a line break ("strict line breaks"
+  // off). remark-breaks only touches soft breaks in paragraph text — tables,
+  // code blocks, and lists are parsed before it ever sees them.
+  .use(remarkBreaks)
   .use(remarkRehype)
   .use(rehypeSlug)
-  .use(rehypeSanitize, schema);
+  .use(rehypeSanitize, schema)
+  .use(rehypeWrapTables);
 
 const stringifier = unified().use(rehypeStringify);
 
 export type RenderedSection = {
-  /** Section number, 1-based, or null for the lede before the first H2. */
-  number: number | null;
-  /** Plain-text heading of the H2 that opened this section. */
+  /** Plain-text heading of the H2 that opened this section, if any. */
   heading: string | null;
   /** The H2's id attribute, for anchors. */
   id: string | null;
-  /** Sanitized HTML for the section body (heading excluded). */
+  /** Sanitized HTML for the section, including its own H2. */
   html: string;
+};
+
+/** One entry in the reader's contents pane. */
+export type TocEntry = {
+  /** 2, 3, or 4 — the heading level. */
+  depth: number;
+  id: string;
+  text: string;
 };
 
 export type RenderedDocument = {
   title: string | null;
   description: string | null;
   sections: RenderedSection[];
+  toc: TocEntry[];
 };
 
 function elementsOf(root: HastRoot): RootContent[] {
@@ -87,10 +126,43 @@ export function inferDescriptionFromTree(
 ): string | null {
   const p = elementsOf(root).find(isParagraph);
   if (!p) return null;
-  const text = hastToString(p).replace(/\s+/g, " ").trim();
+  // Stop at the first line break: with remark-breaks a "***Draft:*** 1.0 /
+  // ***Author:*** …" block is one paragraph, and only its first line reads
+  // as a description.
+  const firstLine = p.children.slice(
+    0,
+    (() => {
+      const i = p.children.findIndex(
+        (c) => c.type === "element" && c.tagName === "br",
+      );
+      return i === -1 ? p.children.length : i;
+    })(),
+  );
+  const text = hastToString({ ...p, children: firstLine })
+    .replace(/\s+/g, " ")
+    .trim();
   if (!text) return null;
   if (text.length <= max) return text;
   return text.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
+}
+
+/** H2–H4 with their ids, in document order, for the contents pane. */
+export function tocFromTree(root: HastRoot): TocEntry[] {
+  const out: TocEntry[] = [];
+  const walk = (nodes: RootContent[]) => {
+    for (const node of nodes) {
+      if (node.type !== "element") continue;
+      const depth = /^h([2-4])$/.exec(node.tagName)?.[1];
+      const id = String(node.properties?.id ?? "");
+      if (depth && id) {
+        const text = hastToString(node).replace(/\s+/g, " ").trim();
+        if (text) out.push({ depth: Number(depth), id, text });
+      }
+      walk(node.children as RootContent[]);
+    }
+  };
+  walk(elementsOf(root));
+  return out;
 }
 
 export async function inferTitle(markdown: string): Promise<string | null> {
@@ -99,8 +171,9 @@ export async function inferTitle(markdown: string): Promise<string | null> {
 
 /**
  * Render for the reader. The first H1 is lifted out as the title (the page
- * header displays it), and the body is split at every H2 so each section
- * can carry a numbered rail label.
+ * header displays it), and the body is split at every H2 so each section is
+ * its own element for print breaks. Each section keeps its own H2 — the
+ * heading is part of the prose, not a rail label.
  */
 export async function renderDocument(markdown: string): Promise<RenderedDocument> {
   const root = await toTree(markdown);
@@ -116,16 +189,14 @@ export async function renderDocument(markdown: string): Promise<RenderedDocument
   const sections: RenderedSection[] = [];
   let current: RootContent[] = [];
   let heading: Element | null = null;
-  let count = 0;
 
   const flush = () => {
-    // Skip an empty lede; keep an empty numbered section (its heading matters).
+    // Skip an empty lede; keep an empty section (its heading matters).
     if (!heading && current.every((n) => n.type === "text")) return;
     sections.push({
-      number: heading ? count : null,
       heading: heading ? hastToString(heading).trim() : null,
       id: heading ? String(heading.properties?.id ?? "") || null : null,
-      html: stringify(current),
+      html: stringify(heading ? [heading, ...current] : current),
     });
   };
 
@@ -133,7 +204,6 @@ export async function renderDocument(markdown: string): Promise<RenderedDocument
     if (isH2(node)) {
       flush();
       heading = node;
-      count += 1;
       current = [];
     } else {
       current.push(node);
@@ -141,7 +211,7 @@ export async function renderDocument(markdown: string): Promise<RenderedDocument
   }
   flush();
 
-  return { title, description, sections };
+  return { title, description, sections, toc: tocFromTree({ ...root, children: body }) };
 }
 
 /** Whole document as one sanitized HTML string (used by tests and previews). */
