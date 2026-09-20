@@ -7,7 +7,21 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Carter / Share";
 
-// Branded card for Telegram and friends: title, lede, CARTER / SHARE.
+// Branded card for Telegram and friends: the CC mark, the document's full
+// title, its lede, and the host it came from.
+const MAX_TITLE = 170;
+
+/** Step the title down as it grows so a long one wraps instead of spilling. */
+function titleSize(length: number): number {
+  if (length > 130) return 40;
+  if (length > 100) return 46;
+  if (length > 72) return 52;
+  if (length > 60) return 56;
+  if (length > 48) return 64;
+  if (length > 28) return 72;
+  return 88;
+}
+
 export default async function OpenGraphImage({
   params,
 }: {
@@ -16,9 +30,13 @@ export default async function OpenGraphImage({
   const { id } = await params;
   const doc = await getPublicDocument(getStore(), id);
   const rendered = doc ? await renderDocument(doc.markdown) : null;
-  const title = rendered?.title ?? (doc ? "Untitled document" : "Document not found");
-  const description = rendered?.description ?? "";
-  const titleSize = title.length > 48 ? 56 : title.length > 28 ? 72 : 88;
+  const full = rendered?.title ?? (doc ? "Untitled document" : "Document not found");
+  // Past this even 40px will not fit three lines of card; clip on a word.
+  const title =
+    full.length > MAX_TITLE ? full.slice(0, MAX_TITLE).replace(/\s+\S*$/, "") + "…" : full;
+  const size_ = titleSize(title.length);
+  // A long title needs the room the lede would take.
+  const description = title.length > 100 ? "" : (rendered?.description ?? "");
 
   return new ImageResponse(
     (
@@ -49,7 +67,24 @@ export default async function OpenGraphImage({
             color: INK_MUTED,
           }}
         >
-          <div style={{ display: "flex", color: INK }}>Carter / Share</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 52,
+                height: 52,
+                background: INK,
+                color: PAPER,
+                fontSize: 24,
+                letterSpacing: 0,
+              }}
+            >
+              CC
+            </div>
+            <div style={{ display: "flex", color: INK }}>Carter / Share</div>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 10, height: 10, background: ACCENT }} />
             <div style={{ display: "flex" }}>share.carter.md</div>
@@ -57,11 +92,18 @@ export default async function OpenGraphImage({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ fontSize: titleSize, letterSpacing: -1.5, lineHeight: 1.05 }}>
+          <div
+            style={{
+              display: "flex",
+              fontSize: size_,
+              letterSpacing: -1.5,
+              lineHeight: 1.1,
+            }}
+          >
             {title}
           </div>
           {description && (
-            <div style={{ fontSize: 34, color: INK_MUTED, lineHeight: 1.25 }}>
+            <div style={{ display: "flex", fontSize: 32, color: INK_MUTED, lineHeight: 1.3 }}>
               {description}
             </div>
           )}
