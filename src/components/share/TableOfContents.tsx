@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TocEntry } from "@/lib/share/markdown";
 
 /**
@@ -50,6 +50,26 @@ export function TableOfContents({ items }: { items: TocEntry[] }) {
     return () => observer.disconnect();
   }, [items]);
 
+  // Keep the highlighted entry in view inside the sticky pane. The pane is
+  // the scroll container (overflow-y: auto), so move its scrollTop directly
+  // rather than scrollIntoView, which would also scroll the document.
+  const wideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = wideRef.current;
+    if (!nav || !current) return;
+    const link = nav.querySelector<HTMLElement>(`a[href="#${CSS.escape(current)}"]`);
+    const pane = nav.closest<HTMLElement>(".share-pane");
+    if (!link || !pane || pane.scrollHeight <= pane.clientHeight) return;
+    const paneBox = pane.getBoundingClientRect();
+    const linkBox = link.getBoundingClientRect();
+    const margin = 48;
+    if (linkBox.top < paneBox.top + margin) {
+      pane.scrollTop -= paneBox.top + margin - linkBox.top;
+    } else if (linkBox.bottom > paneBox.bottom - margin) {
+      pane.scrollTop += linkBox.bottom - (paneBox.bottom - margin);
+    }
+  }, [current]);
+
   if (items.length < 2) return null;
 
   const list = (
@@ -70,7 +90,7 @@ export function TableOfContents({ items }: { items: TocEntry[] }) {
 
   return (
     <div className="share-toc no-print">
-      <nav aria-label="Contents" className="share-toc__wide">
+      <nav aria-label="Contents" className="share-toc__wide" ref={wideRef}>
         <p className="kicker text-ink-muted">Contents</p>
         {list}
       </nav>
