@@ -672,7 +672,10 @@
   }
 
   /* On paper there is nowhere to scroll: let the table shrink to the page
-     instead, breaking inside cells if that is what it takes. */
+     instead. Cells wrap at spaces — the reader's label column was coming out
+     as "Backgro / und-activity control" because .prose-body's overflow-wrap:
+     anywhere was inherited straight through to the cells. Only a token longer
+     than its column (a URL, a long identifier) may break inside itself now. */
   .table-scroll {
     overflow: visible;
   }
@@ -688,7 +691,23 @@
   .prose-body td {
     min-width: 0;
     padding: 0.3em 0.6em 0.3em 0;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: manual;
+  }
+
+  /* The label column is the one that gets squeezed to a few ems, and it is
+     also the one whose words matter most. Give it a floor and let
+     table-layout: auto share out what is left. */
+  .prose-body th:first-child,
+  .prose-body td:first-child {
+    min-width: 7em;
+  }
+
+  /* A long backticked identifier must wrap rather than widen its column. */
+  .prose-body th code,
+  .prose-body td code {
+    white-space: normal;
     overflow-wrap: anywhere;
   }
 
