@@ -7,6 +7,18 @@ const SHARE_HOST = process.env.SHARE_HOST || "share.carter.md";
 const ID = "[1-9A-HJ-NP-Za-km-z]{22}";
 const onShareHost = [{ type: "host" as const, value: SHARE_HOST }];
 
+/**
+ * The catch-all's path pattern. `beforeFiles` rewrites do not stop at the
+ * first match: every later rule is re-tested against the already-rewritten
+ * path. So the catch-all has to skip anything the specific rules above it
+ * have already moved onto the /share mount — otherwise "/" became "/share"
+ * and then "/share/share", and "/:id.md" became "/share/share/:id/md", which
+ * is exactly why the landing page, robots.txt, and both download links 404ed.
+ * Next's own asset paths are excluded for the same reason (88be7a6): they
+ * must stay where they are or every stylesheet 404s on the share hostname.
+ */
+export const SHARE_CATCH_ALL = "(?!_next/|share(?:/|$)|favicon\\.ico$).*";
+
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   // The Chromium binary is loaded at runtime from node_modules/.../bin, which
@@ -23,10 +35,8 @@ const nextConfig: NextConfig = {
         { source: "/robots.txt", has: onShareHost, destination: "/share/robots.txt" },
         { source: `/:id(${ID}).md`, has: onShareHost, destination: "/share/:id/md" },
         { source: `/:id(${ID}).pdf`, has: onShareHost, destination: "/share/:id/pdf" },
-        // Everything else on the share host maps onto /share/*, except Next's
-        // own asset and image paths, which must stay where they are or every
-        // stylesheet and script 404s on the share hostname.
-        { source: "/:path((?!_next/|favicon\\.ico$).*)", has: onShareHost, destination: "/share/:path" },
+        // Everything else on the share host maps onto /share/*.
+        { source: `/:path(${SHARE_CATCH_ALL})`, has: onShareHost, destination: "/share/:path" },
         // Same suffix routes on the /share mount itself, so local dev and the
         // cartercrouch.dev mirror behave identically to the share host.
         { source: `/share/:id(${ID}).md`, destination: "/share/:id/md" },
@@ -38,6 +48,7 @@ const nextConfig: NextConfig = {
     // Keep the profile photo out of image-search indexes (both the raw file
     // and the next/image optimizer URL) while leaving it visible on the page.
     const noImageIndex = [{ key: "X-Robots-Tag", value: "noimageindex" }];
+    const noIndex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
     return [
       { source: "/profile.jpeg", headers: noImageIndex },
       {
@@ -45,11 +56,12 @@ const nextConfig: NextConfig = {
         has: [{ type: "query", key: "url", value: "/profile.jpeg" }],
         headers: noImageIndex,
       },
-      // Belt and braces: everything under the share mount is unlisted.
-      {
-        source: "/share/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
+      // Belt and braces: everything under the share mount is unlisted. Header
+      // rules match the *original* request path, so /share/:path* never fires
+      // on share.carter.md, where the paths are bare — the host-conditioned
+      // rule below is the one that covers the public host.
+      { source: "/share/:path*", headers: noIndex },
+      { source: "/:path*", has: onShareHost, headers: noIndex },
     ];
   },
 };
