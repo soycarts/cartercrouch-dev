@@ -263,39 +263,37 @@
 }
 
 /* ---------------------------------------------------------------------------
-   share.carter.md — the document reader, after Obsidian's "Things" theme:
-   one column of prose with no rail, a coloured heading per level at weight
-   500, small round bullets, and tables that scroll rather than clip. Every
+   share.carter.md — the document reader, after Obsidian's "Things" theme
+   (~/.obsidian/themes/Things/theme.css): one column of prose with no rail,
+   h1/h2 in the body ink with a rule under the h2, an accent per level from
+   h3 down, pink emphasis, and tables that scroll rather than clip. Every
    element here comes from sanitized Markdown, so the selectors are by tag
    on purpose. The site's own tokens, fonts, and rules are untouched.
    --------------------------------------------------------------------------- */
 :root {
-  /* Things, light. */
-  --h1: #e4374b;
-  --h2: #d96c00;
-  --h3: #bd8e37;
-  --h4: #0cb54f;
-  --h5: #086ddd;
-  --h6: #876be0;
+  /* The Things accent palette, one set for both light and dark — only the
+     text colours change between modes, and those are the site's own --ink
+     and --ink-muted. Headings use blue, yellow, and red; orange, green, and
+     purple are the rest of the theme's palette. */
+  --things-blue: #2e80f2;
+  --things-pink: #ff82b2;
+  --things-green: #3eb4bf;
+  --things-yellow: #e5b567;
+  --things-orange: #e87d3e;
+  --things-red: #e83e3e;
+  --things-purple: #9e86c8;
   /* Reader body text, a notch below the site's 18px root. */
   --reader-size: 15px;
 }
 
-/* Things, dark. Screen only: the PDF printer runs with media type "print",
-   and a document should print on paper whatever the reader's system says. */
+/* Screen only: the PDF printer runs with media type "print", and a document
+   should print on paper whatever the reader's system says. */
 @media screen and (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --h1: #fb464c;
-    --h2: #e9973f;
-    --h3: #e0de71;
-    --h4: #44cf6e;
-    --h5: #027aff;
-    --h6: #a882ff;
-  }
-
   /* Only the share host follows the system scheme — the personal site keeps
      its one committed paper surface, which is why this is scoped to pages
-     carrying .share-root rather than set on :root. */
+     carrying .share-root rather than set on :root. The heading palette needs
+     no dark variant: the accents are shared, and h1/h2/h6 ride on --ink and
+     --ink-muted, which flip here. */
   html:has(.share-root):not([data-theme="light"]) {
     color-scheme: dark;
     --paper: #1b1b1b;
@@ -311,15 +309,6 @@
 
 /* Explicit opt-in, should the site ever grow a theme switch. */
 @media screen {
-  :root[data-theme="dark"] {
-    --h1: #fb464c;
-    --h2: #e9973f;
-    --h3: #e0de71;
-    --h4: #44cf6e;
-    --h5: #027aff;
-    --h6: #a882ff;
-  }
-
   html[data-theme="dark"]:has(.share-root) {
     color-scheme: dark;
     --paper: #1b1b1b;
@@ -341,9 +330,9 @@
   /* The lifted H1. Rendered once above the content — by ShareHeader on the
      page, by the viewer itself inside the attachment popup. */
   .share-title {
-    color: var(--h1);
-    font-size: calc(var(--reader-size) * 2.125);
-    font-weight: 500;
+    color: var(--ink);
+    font-size: calc(var(--reader-size) * 1.7);
+    font-weight: 600;
     line-height: 1.2;
     letter-spacing: -0.01em;
   }
@@ -361,7 +350,7 @@
 
   /* The measure applies to text, not to the things that need the room:
      tables and code blocks take the whole column. */
-  .prose-body > :where(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6) {
+  .prose-body > :where(p, ul, ol, dl, blockquote, h3, h4, h5, h6) {
     max-width: 80ch;
   }
 
@@ -375,11 +364,13 @@
     margin-block: 0 1.1em;
   }
 
-  /* Heading scale and colour, Things. Weight 500 across the board — the
-     colour, not the weight, carries the level. */
+  /* Heading scale and colour, Things. Sizes are the theme's rem values
+     against its 15px base, written as em so they hang off --reader-size
+     rather than the site's 18px root. Things does not touch heading weight,
+     so this is Obsidian's own default of 600. */
   .prose-body :is(h1, h2, h3, h4, h5, h6) {
     font-family: inherit;
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1.3;
     letter-spacing: -0.005em;
     text-transform: none;
@@ -387,33 +378,39 @@
   }
 
   .prose-body h1 {
-    font-size: 2.125em;
-    color: var(--h1);
+    font-size: 1.7em;
+    color: var(--ink);
   }
 
+  /* The h2 is the theme's one structural line: body ink, ruled underneath
+     across the whole column. */
   .prose-body h2 {
-    font-size: 1.625em;
-    color: var(--h2);
+    font-size: 1.5em;
+    color: var(--ink);
+    width: 100%;
+    padding-bottom: 2px;
+    margin-bottom: 8px;
+    border-bottom: 2px solid var(--rule);
   }
 
   .prose-body h3 {
-    font-size: 1.375em;
-    color: var(--h3);
+    font-size: 1.2em;
+    color: var(--things-blue);
   }
 
   .prose-body h4 {
-    font-size: 1.25em;
-    color: var(--h4);
+    font-size: 1.1em;
+    color: var(--things-yellow);
   }
 
   .prose-body h5 {
-    font-size: 1.125em;
-    color: var(--h5);
+    font-size: 1em;
+    color: var(--things-red);
   }
 
   .prose-body h6 {
-    font-size: 1em;
-    color: var(--h6);
+    font-size: 0.9em;
+    color: var(--ink-muted);
   }
 
   /* Only the very first block of the document loses its top margin; every
@@ -424,9 +421,16 @@
     margin-top: 0;
   }
 
-  .prose-body strong {
-    font-weight: 500;
-    color: var(--ink);
+  /* Where the pink in Things comes from: --strong-color and --em-color are
+     both the palette's pink. Weight and slant stay as they are. */
+  .prose-body strong,
+  .prose-body b {
+    color: var(--things-pink);
+  }
+
+  .prose-body em,
+  .prose-body i {
+    color: var(--things-pink);
   }
 
   .prose-body a {
@@ -461,8 +465,8 @@
     position: absolute;
     top: 0.62em;
     left: -1em;
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background: var(--ink-muted);
   }
