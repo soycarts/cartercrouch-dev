@@ -32,6 +32,52 @@ describe("markdown rendering", () => {
     expect(html).toContain("</table></div>");
   });
 
+  it("ends the list at a lazy continuation line, as Obsidian does", async () => {
+    const html = await renderHtml(
+      [
+        "Timour:",
+        "* Sign-off on the definitions",
+        "* Proactive limit: three per day?",
+        "Seref:",
+        "* Thresholds for the budgets and alerts.",
+        "NYU:",
+        "* The MoralMod harness, or a date for it.",
+        "",
+      ].join("\n"),
+    );
+    // Three lists, each closed by the paragraph that follows it.
+    expect(html.match(/<ul>/g)).toHaveLength(3);
+    expect(html).toContain("<p>Seref:</p>");
+    expect(html).toContain("<p>NYU:</p>");
+    // Neither name may have been swallowed by the item above it, which is
+    // how it used to render: a <br> and a second line inside the bullet.
+    expect(html).not.toMatch(/<li>(?:(?!<\/li>).)*Seref/s);
+    expect(html).not.toMatch(/<li>(?:(?!<\/li>).)*NYU/s);
+    expect(html.indexOf("<p>Seref:</p>")).toBeGreaterThan(html.indexOf("</ul>"));
+  });
+
+  it("keeps an indented continuation inside its own list item", async () => {
+    const html = await renderHtml("* First line\n  second line of the same item\n");
+    expect(html.match(/<li>/g)).toHaveLength(1);
+    expect(html).toContain("second line of the same item");
+    expect(html).not.toContain("<p>second line");
+  });
+
+  it("leaves a nested list alone, and still closes at column one", async () => {
+    const inner = await renderHtml("* Outer\n  * Inner\n  still the inner list's item\n");
+    expect(inner.match(/<ul>/g)).toHaveLength(2);
+    expect(inner).not.toContain("<p>still");
+
+    const closed = await renderHtml("* Outer\n  * Inner\nback at column one\n* Fresh\n");
+    expect(closed).toContain("<p>back at column one</p>");
+    expect(closed.match(/<ul>/g)).toHaveLength(3);
+  });
+
+  it("does not split a lazy-looking line inside a fenced code block", async () => {
+    const html = await renderHtml("* Item\n\n```\n* fenced\nnot lazy\n```\n");
+    expect(html).toContain("* fenced\nnot lazy");
+  });
+
   it("turns a single newline into a line break, as Obsidian does", async () => {
     const html = await renderHtml("***Draft:*** 1.0\n***Author:*** Carter Crouch\n");
     expect(html).toContain("<br>");

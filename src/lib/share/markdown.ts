@@ -48,6 +48,103 @@ function rehypeWrapTables() {
   };
 }
 
+// A line that carries on a list item's paragraph without being indented to
+// the item's content column — CommonMark's "lazy continuation".
+const LIST_MARKER = /^(\s*)([-*+]|\d{1,9}[.)])([ \t]+)(?=\S)/;
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+// Blocks that already interrupt a paragraph, so CommonMark ends the list on
+// them by itself and there is nothing for us to do.
+const BLOCK_START = /^ {0,3}(#{1,6}\s|>|={3,}\s*$|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$|<)/;
+
+/**
+ * Close a list where Obsidian closes it — before parsing, because the
+ * difference is a parsing one and does not survive into the tree.
+ *
+ * CommonMark lets an unindented line carry on the paragraph of the list item
+ * above it, so
+ *
+ *     Timour:
+ *     * Sign-off on the definitions
+ *     Seref:
+ *     * Thresholds
+ *
+ * puts "Seref:" *inside* the first list, where remark-breaks then drops it
+ * onto its own line under the bullet. Obsidian has no lazy continuation:
+ * "Seref:" is a paragraph, and it ends the list. A blank line inserted ahead
+ * of such a line says exactly that in CommonMark's own terms.
+ *
+ * Doing this on the source rather than on the mdast is not a shortcut. A
+ * lazy line and a properly indented continuation produce the *same* text
+ * node value — the indentation is stripped either way — so only the source
+ * still knows which is which.
+ *
+ * A line is lazy when it is not blank, not a new list marker, not a block
+ * that already interrupts the paragraph, not inside a fence, and indented
+ * less than the item's content column *and* no further than the outermost
+ * list's own marker. That last clause is what keeps nested lists intact: a
+ * line indented under the outer item is still part of it.
+ */
+export function closeListsAtLazyLines(markdown: string): string {
+  const lines = markdown.split("\n");
+  const out: string[] = [];
+  let fence: string | null = null;
+  /** Indent of the outermost currently open list marker; -1 for none. */
+  let outerIndent = -1;
+  /** Content column of the most recent list item; -1 for none. */
+  let contentColumn = -1;
+  let afterBlank = true;
+
+  for (const line of lines) {
+    const fenced = FENCE.exec(line);
+    if (fence !== null) {
+      out.push(line);
+      if (fenced && fenced[1][0] === fence[0] && fenced[1].length >= fence.length) fence = null;
+      afterBlank = false;
+      continue;
+    }
+    if (fenced) {
+      fence = fenced[1];
+      out.push(line);
+      afterBlank = false;
+      continue;
+    }
+    if (line.trim() === "") {
+      out.push(line);
+      afterBlank = true;
+      continue;
+    }
+
+    const indent = line.length - line.trimStart().length;
+    const marker = LIST_MARKER.exec(line);
+    if (marker) {
+      if (outerIndent === -1 || indent < outerIndent) outerIndent = indent;
+      contentColumn = marker[1].length + marker[2].length + marker[3].length;
+      out.push(line);
+      afterBlank = false;
+      continue;
+    }
+
+    if (contentColumn !== -1 && indent < contentColumn) {
+      if (!afterBlank && indent <= outerIndent && !BLOCK_START.test(line)) {
+        out.push("");
+        out.push(line);
+        outerIndent = -1;
+        contentColumn = -1;
+        afterBlank = false;
+        continue;
+      }
+      if (indent <= outerIndent) {
+        outerIndent = -1;
+        contentColumn = -1;
+      }
+    }
+    out.push(line);
+    afterBlank = false;
+  }
+
+  return out.join("\n");
+}
+
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
@@ -108,7 +205,8 @@ function stringify(nodes: RootContent[]): string {
 
 /** Parse and sanitize; the heavy lifting shared by every representation. */
 async function toTree(markdown: string): Promise<HastRoot> {
-  const tree = await processor.run(processor.parse(markdown));
+  const source = closeListsAtLazyLines(markdown);
+  const tree = await processor.run(processor.parse(source));
   return tree as HastRoot;
 }
 
