@@ -54,9 +54,30 @@ export function TableOfContents({ items }: { items: TocEntry[] }) {
   // the scroll container (overflow-y: auto), so move its scrollTop directly
   // rather than scrollIntoView, which would also scroll the document.
   const wideRef = useRef<HTMLElement>(null);
+  // At the top of the document the pane parks at its own top, so the files
+  // list is visible again; the follow-the-heading logic below stays out of
+  // the way while the reader is up there.
+  const TOP = 120;
+  useEffect(() => {
+    const pane = wideRef.current?.closest<HTMLElement>(".share-pane");
+    if (!pane) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (window.scrollY < TOP && pane.scrollTop > 0) pane.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
   useEffect(() => {
     const nav = wideRef.current;
     if (!nav || !current) return;
+    if (window.scrollY < TOP) return;
     const link = nav.querySelector<HTMLElement>(`a[href="#${CSS.escape(current)}"]`);
     const pane = nav.closest<HTMLElement>(".share-pane");
     if (!link || !pane || pane.scrollHeight <= pane.clientHeight) return;

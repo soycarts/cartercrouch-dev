@@ -824,7 +824,7 @@
     position: sticky;
     top: 1.5rem;
     display: grid;
-    gap: 1.75rem;
+    gap: 1rem;
     max-height: calc(100vh - 3rem);
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -836,7 +836,7 @@
   }
 
   .share-tree ul {
-    margin-top: 0.75rem;
+    margin-top: 0.35rem;
   }
 
   .share-tree__item {
@@ -844,9 +844,9 @@
     width: 100%;
     text-align: left;
     font-family: var(--font-mono);
-    font-size: 0.78rem;
-    line-height: 1.4;
-    padding: 0.4rem 0;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    padding: 0.22rem 0;
     color: var(--ink);
     background: none;
     border: 0;
@@ -886,7 +886,7 @@
   }
 
   .share-toc__wide > .kicker {
-    padding-top: 0.9rem;
+    padding-top: 0.5rem;
     border-top: 1px solid var(--rule);
   }
 
@@ -898,16 +898,16 @@
   }
 
   .share-toc__list {
-    margin-top: 0.6rem;
+    margin-top: 0.3rem;
     list-style: none;
   }
 
   .share-toc__link {
     display: block;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
-    line-height: 1.35;
-    padding: 0.28rem 0 0.28rem 0.6rem;
+    font-size: 0.68rem;
+    line-height: 1.3;
+    padding: 0.15rem 0 0.15rem 0.6rem;
     border-left: 1px solid var(--rule);
     color: var(--ink-soft);
     text-decoration: none;
@@ -926,13 +926,13 @@
   }
 
   .share-toc__item--h3 .share-toc__link {
-    padding-left: 1.4rem;
-    font-size: 0.7rem;
+    padding-left: 1.3rem;
+    font-size: 0.66rem;
   }
 
   .share-toc__item--h4 .share-toc__link {
-    padding-left: 2.2rem;
-    font-size: 0.7rem;
+    padding-left: 2rem;
+    font-size: 0.64rem;
     color: var(--ink-muted);
   }
 
