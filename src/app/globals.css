@@ -344,6 +344,7 @@
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: -0.01em;
+    overflow-wrap: break-word;
   }
 
   /* On the main document the title is the share link. Styled as if it were
@@ -908,6 +909,18 @@
     border-top: 1px solid var(--rule);
   }
 
+  /* The pane's own list on desktop; the <details> takes over below 900px. */
+  .share-tree--narrow {
+    display: none;
+  }
+
+  /* No bottom rule: the contents summary below it brings its own top rule,
+     and two of them with the pane's gap between reads as an empty band. */
+  .share-tree--narrow > summary {
+    padding: 0.6rem 0;
+    cursor: pointer;
+  }
+
   .share-tree ul {
     margin-top: 0.35rem;
   }
@@ -1164,6 +1177,36 @@
     margin-left: 0;
   }
 
+  /* Everything on the bar becomes a finger-sized target. The action's
+     underline is its affordance, so it moves onto the label stack rather
+     than riding 20px below the text on a taller button. */
+  .share-tab {
+    padding-block: 0.85rem;
+  }
+
+  .share-action {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .share-action__stack {
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--rule);
+    transition: border-color 180ms var(--ease-out);
+  }
+
+  .share-action:hover .share-action__stack,
+  .share-action.is-done .share-action__stack {
+    border-color: var(--accent);
+  }
+
+  .share-actions {
+    gap: 0.1rem 1.3rem;
+  }
+
   .share-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1175,22 +1218,47 @@
     gap: 1rem;
   }
 
-  .share-toc__wide {
+  .share-toc__wide,
+  .share-tree--wide {
     display: none;
   }
 
-  .share-toc__narrow {
+  .share-toc__narrow,
+  .share-tree--narrow {
     display: block;
   }
 
-  .share-dialog {
-    width: calc(100% - 1rem);
-    max-width: calc(100% - 1rem);
-    height: calc(100vh - 1rem);
-    max-height: calc(100vh - 1rem);
+  /* Collapsed, the list is two lines of chrome; opened, its rows are
+     tappable and the arrow has a target of its own beside the name. */
+  .share-tree__item {
+    padding-block: 0.8rem;
   }
 
+  .share-tree__open {
+    min-width: 2.75rem;
+  }
+
+  .share-toc__link {
+    padding-block: 0.5rem;
+  }
+
+  /* A sheet, not a dialog: dvh so the iOS address bar cannot clip the foot. */
+  .share-dialog {
+    width: 100dvw;
+    max-width: 100dvw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+  }
+
+  /* The panel is a flex column and only the body scrolls, so the head is
+     already fixed in place; sticky is belt and braces for older engines. */
   .share-dialog__head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    flex-wrap: wrap;
     padding: 0.9rem 1rem 0.8rem;
   }
 

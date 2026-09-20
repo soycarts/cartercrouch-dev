@@ -56,54 +56,68 @@ export function AttachmentTree({
   const current = open === null ? null : files[open];
   const onDocument = currentFile === null;
 
+  const list = (
+    <ul>
+      {/* On the document itself this row only dismisses a popup; from a
+          file's own page it is the way back. */}
+      <li className="share-tree__row">
+        {onDocument ? (
+          <button
+            type="button"
+            onClick={() => setOpen(null)}
+            aria-current={open === null ? "true" : undefined}
+            className="share-tree__item share-tree__item--doc"
+          >
+            {documentName}
+          </button>
+        ) : (
+          <a href={documentHref} className="share-tree__item share-tree__item--doc">
+            {documentName}
+          </a>
+        )}
+      </li>
+      {files.map((f, i) => {
+        const isCurrent = currentFile !== null && f.name === currentFile;
+        return (
+          <li key={f.name} className="share-tree__row">
+            <button
+              type="button"
+              onClick={() => setOpen(i)}
+              aria-current={isCurrent || open === i ? "true" : undefined}
+              className="share-tree__item share-tree__item--file"
+            >
+              {f.name}
+            </button>
+            <a
+              href={f.pageUrl}
+              className="share-tree__open"
+              aria-label={`Open ${f.name} as page`}
+              title="Open as page"
+            >
+              <span aria-hidden="true">↗</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <>
-      <nav aria-label="Files" className="share-tree no-print">
+      {/* Two renderings of one list, with CSS choosing: a plain nav in the
+          pane on desktop, a collapsed <details> below 900px — where a phone
+          would otherwise meet three hundred pixels of file list before the
+          document. Same trick, and same reason, as the contents pane. */}
+      <nav aria-label="Files" className="share-tree share-tree--wide no-print">
         <p className="kicker text-ink-muted">Files</p>
-        <ul>
-          {/* On the document itself this row only dismisses a popup; from a
-              file's own page it is the way back. */}
-          <li className="share-tree__row">
-            {onDocument ? (
-              <button
-                type="button"
-                onClick={() => setOpen(null)}
-                aria-current={open === null ? "true" : undefined}
-                className="share-tree__item share-tree__item--doc"
-              >
-                {documentName}
-              </button>
-            ) : (
-              <a href={documentHref} className="share-tree__item share-tree__item--doc">
-                {documentName}
-              </a>
-            )}
-          </li>
-          {files.map((f, i) => {
-            const isCurrent = currentFile !== null && f.name === currentFile;
-            return (
-              <li key={f.name} className="share-tree__row">
-                <button
-                  type="button"
-                  onClick={() => setOpen(i)}
-                  aria-current={isCurrent || open === i ? "true" : undefined}
-                  className="share-tree__item share-tree__item--file"
-                >
-                  {f.name}
-                </button>
-                <a
-                  href={f.pageUrl}
-                  className="share-tree__open"
-                  aria-label={`Open ${f.name} as page`}
-                  title="Open as page"
-                >
-                  <span aria-hidden="true">↗</span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
+        {list}
       </nav>
+      <details className="share-tree share-tree--narrow no-print">
+        <summary className="kicker text-ink-muted">
+          Files{currentFile ? ` — ${currentFile}` : ""}
+        </summary>
+        <nav aria-label="Files">{list}</nav>
+      </details>
 
       <dialog
         ref={dialog}
@@ -115,11 +129,17 @@ export function AttachmentTree({
         }}
       >
         {current && (
-          <div className="share-dialog__panel" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="share-dialog__panel"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="share-dialog__head">
               <span className="kicker text-ink">{current.name}</span>
               <span className="share-dialog__tools">
-                <a href={current.pageUrl} className="kicker text-ink-muted hover:text-ink">
+                <a
+                  href={current.pageUrl}
+                  className="kicker text-ink-muted hover:text-ink"
+                >
                   Open as page ↗
                 </a>
                 <button
@@ -135,7 +155,12 @@ export function AttachmentTree({
             {/* The panel is the full height of the dialog; only this scrolls,
                 so a wide table keeps the head and the close button in view. */}
             <div className="share-dialog__body">
-              <DocumentViewer key={current.name} doc={current} compact title={current.title} />
+              <DocumentViewer
+                key={current.name}
+                doc={current}
+                compact
+                title={current.title}
+              />
             </div>
           </div>
         )}

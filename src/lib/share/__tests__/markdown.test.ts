@@ -51,8 +51,8 @@ describe("markdown rendering", () => {
     expect(html).toContain("<p>NYU:</p>");
     // Neither name may have been swallowed by the item above it, which is
     // how it used to render: a <br> and a second line inside the bullet.
-    expect(html).not.toMatch(/<li>(?:(?!<\/li>).)*Seref/s);
-    expect(html).not.toMatch(/<li>(?:(?!<\/li>).)*NYU/s);
+    expect(html).not.toMatch(/<li>(?:(?!<\/li>)[\s\S])*Seref/);
+    expect(html).not.toMatch(/<li>(?:(?!<\/li>)[\s\S])*NYU/);
     expect(html.indexOf("<p>Seref:</p>")).toBeGreaterThan(html.indexOf("</ul>"));
   });
 
