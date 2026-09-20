@@ -20,6 +20,8 @@ export function TableOfContents({ items }: { items: TocEntry[] }) {
       .filter((el): el is HTMLElement => el !== null);
     if (targets.length === 0) return;
 
+    // Only the top third of the viewport counts as "here".
+    const band = () => window.innerHeight / 3;
     const visible = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -27,13 +29,21 @@ export function TableOfContents({ items }: { items: TocEntry[] }) {
           if (entry.isIntersecting) visible.add(entry.target.id);
           else visible.delete(entry.target.id);
         }
-        // The topmost heading inside the band. When a long section leaves
-        // nothing in it, the last answer stands — which is the one the
-        // reader is still inside.
         const first = items.find((i) => visible.has(i.id));
-        if (first) setCurrent(first.id);
+        if (first) {
+          setCurrent(first.id);
+          return;
+        }
+        // Nothing in the band — either a long section, or a jump that
+        // crossed several headings between callbacks. The heading the
+        // reader is under is the last one above the band.
+        let last: string | null = null;
+        for (const item of items) {
+          const el = document.getElementById(item.id);
+          if (el && el.getBoundingClientRect().top < band()) last = item.id;
+        }
+        setCurrent(last ?? items[0].id);
       },
-      // Only the top third of the viewport counts as "here".
       { rootMargin: "0px 0px -67% 0px", threshold: 0 },
     );
     for (const el of targets) observer.observe(el);
