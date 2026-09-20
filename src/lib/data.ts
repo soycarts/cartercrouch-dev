@@ -93,6 +93,7 @@ export const projects: Project[] = [
     // Run as a business — stack kept proprietary.
     tags: [],
     website: "https://approval.md",
+    github: "https://github.com/approval-md/approval.md",
     image: "/projects/approval-2026-09.jpg",
   },
   {
