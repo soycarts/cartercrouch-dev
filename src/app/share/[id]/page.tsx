@@ -31,6 +31,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: `${pageTitle} — Carter / Share`,
     description: description ?? undefined,
+    // Absolute URLs (the OG image above all) must be on the share host, not
+    // the personal site's metadataBase from the root layout.
+    metadataBase: new URL(new URL(url).origin),
     robots: { index: false, follow: false },
     alternates: { canonical: url },
     openGraph: {

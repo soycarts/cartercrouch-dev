@@ -222,26 +222,26 @@ export function inferDescriptionFromTree(
   root: HastRoot,
   max = 160,
 ): string | null {
-  const p = elementsOf(root).find(isParagraph);
-  if (!p) return null;
-  // Stop at the first line break: with remark-breaks a "***Draft:*** 1.0 /
-  // ***Author:*** …" block is one paragraph, and only its first line reads
-  // as a description.
-  const firstLine = p.children.slice(
-    0,
-    (() => {
-      const i = p.children.findIndex(
-        (c) => c.type === "element" && c.tagName === "br",
-      );
-      return i === -1 ? p.children.length : i;
-    })(),
-  );
-  const text = hastToString({ ...p, children: firstLine })
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!text) return null;
-  if (text.length <= max) return text;
-  return text.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
+  // First line of a paragraph: with remark-breaks a "***Draft:*** 1.0 /
+  // ***Author:*** …" block is one paragraph, and only its first line reads.
+  const firstLine = (p: Element): string => {
+    const i = p.children.findIndex((c) => c.type === "element" && c.tagName === "br");
+    const kids = i === -1 ? p.children : p.children.slice(0, i);
+    return hastToString({ ...p, children: kids }).replace(/\s+/g, " ").trim();
+  };
+  // A "Label: value" line (Draft: 1.0, Author: …, Created: …) is metadata,
+  // not a summary. Prefer the first paragraph that reads as prose.
+  const looksLikeLabel = (t: string) => /^[A-Za-z][A-Za-z0-9 /&()'’-]{0,40}:\s*\S/.test(t);
+  const paragraphs = elementsOf(root).filter(isParagraph);
+  if (paragraphs.length === 0) return null;
+  const clip = (text: string) =>
+    text.length <= max ? text : text.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
+  for (const p of paragraphs) {
+    const text = firstLine(p);
+    if (text.length >= 40 && !looksLikeLabel(text)) return clip(text);
+  }
+  const fallback = firstLine(paragraphs[0]);
+  return fallback ? clip(fallback) : null;
 }
 
 /** H2–H4 with their ids, in document order, for the contents pane. */

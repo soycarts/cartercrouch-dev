@@ -139,3 +139,23 @@ describe("markdown rendering", () => {
     expect(doc.description!.endsWith("…")).toBe(true);
   });
 });
+
+
+describe("description skips metadata lines", () => {
+  it("prefers the first prose paragraph over a Label: value block", async () => {
+    const md = [
+      "# Title",
+      "***Draft:*** 1.0",
+      "***Author:*** Carter Crouch",
+      "",
+      "### Scope",
+      "My background is data science and data engineering, alongside recent work orchestrating agents.",
+    ].join("\n");
+    const { description } = await renderDocument(md);
+    expect(description).toMatch(/^My background is data science/);
+  });
+  it("falls back to the first line when nothing reads as prose", async () => {
+    const { description } = await renderDocument("# T\n***Draft:*** 1.0\n***Author:*** X");
+    expect(description).toBe("Draft: 1.0");
+  });
+});
