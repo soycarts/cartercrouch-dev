@@ -102,12 +102,16 @@ export function DocumentViewer({
   initialView = "reader",
   compact = false,
   title = null,
+  aside = null,
 }: {
   doc: ViewerDocument;
   initialView?: View;
   compact?: boolean;
   /** The lifted H1, for the popup — the main page prints its own. */
   title?: string | null;
+  /** Side pane (file tree, contents). The bar spans the full width above
+   *  both pane and body, so it has the whole measure to stay on one row. */
+  aside?: React.ReactNode;
 }) {
   const [view, setView] = useState<View>(initialView);
   const tab = (target: View, label: string) => (
@@ -121,6 +125,13 @@ export function DocumentViewer({
       {label}
     </button>
   );
+
+  const body =
+    view === "markdown" ? (
+      <pre className="share-source">{doc.markdown}</pre>
+    ) : (
+      <Prose sections={doc.sections} />
+    );
 
   return (
     <div className={compact ? "share-viewer share-viewer--compact" : "share-viewer"}>
@@ -141,12 +152,13 @@ export function DocumentViewer({
             behind it, driving both. */}
         {!compact && <ReaderControls />}
       </div>
-      {view === "markdown" ? (
-        <pre className="share-source mt-8">{doc.markdown}</pre>
-      ) : (
-        <div className="mt-8">
-          <Prose sections={doc.sections} />
+      {aside ? (
+        <div className="share-layout mt-8">
+          <aside className="share-pane">{aside}</aside>
+          <div className="min-w-0">{body}</div>
         </div>
+      ) : (
+        <div className="mt-8">{body}</div>
       )}
     </div>
   );

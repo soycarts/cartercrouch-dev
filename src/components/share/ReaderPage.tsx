@@ -37,30 +37,26 @@ export function ReaderPage({
   files: ViewerAttachment[];
   currentFile?: string | null;
 }) {
-  const viewer = <DocumentViewer doc={doc} initialView={initialView} />;
   // The side pane carries the file tree (when there are attachments) above
-  // the contents list. With neither, the prose gets the whole measure.
+  // the contents list. With neither, the prose gets the whole measure. The
+  // viewer places it beside the body, under a bar that spans both.
   const hasPane = files.length > 0 || toc.length > 1;
+  const aside = hasPane ? (
+    <>
+      <AttachmentTree
+        documentName={documentName}
+        documentHref={documentHref}
+        files={files}
+        currentFile={currentFile}
+      />
+      <TableOfContents items={toc} />
+    </>
+  ) : null;
 
   return (
     <div className="shell">
       <ShareHeader title={title} href={href} createdAt={createdAt} updatedAt={updatedAt} />
-      {hasPane ? (
-        <div className="share-layout">
-          <aside className="share-pane">
-            <AttachmentTree
-              documentName={documentName}
-              documentHref={documentHref}
-              files={files}
-              currentFile={currentFile}
-            />
-            <TableOfContents items={toc} />
-          </aside>
-          <div className="min-w-0">{viewer}</div>
-        </div>
-      ) : (
-        viewer
-      )}
+      <DocumentViewer doc={doc} initialView={initialView} aside={aside} />
     </div>
   );
 }
