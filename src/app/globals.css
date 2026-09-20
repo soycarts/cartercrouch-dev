@@ -896,13 +896,34 @@
   /* A row is the file name plus the control that promotes it to a page; the
      hairline belongs to the pair, not to the name alone. */
   .share-tree__row {
+    position: relative;
     display: flex;
     align-items: stretch;
     border-bottom: 1px solid var(--rule);
   }
 
+  /* The tint is a layer behind the row rather than a background on it: it can
+     then reach a little past the text on both sides without moving anything,
+     and the hairline stays exactly where it was. */
+  .share-tree__row::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 -0.4rem;
+    border-radius: 4px;
+    background: transparent;
+    pointer-events: none;
+    transition: background 180ms var(--ease-out);
+  }
+
   .share-tree__row:has(.share-tree__item[aria-current="true"]) {
     border-bottom-color: var(--rule-strong);
+  }
+
+  /* Current and hover read as the same family, one louder than the other. */
+  .share-tree__row:has(.share-tree__item[aria-current="true"])::after {
+    background: rgba(10, 107, 83, 0.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .share-tree__item {
@@ -940,6 +961,19 @@
     color: var(--ink-soft);
   }
 
+  /* Hover is gated: on a touch screen it sticks to the last thing tapped. */
+  @media (hover: hover) {
+    .share-tree__row:hover::after {
+      background: rgba(10, 107, 83, 0.12);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+
+    .share-tree__item:hover,
+    .share-tree__row:hover .share-tree__item {
+      color: var(--accent);
+    }
+  }
+
   /* "Open as page": a separate target from the name, which opens the popup. */
   .share-tree__open {
     display: inline-flex;
@@ -953,6 +987,12 @@
     color: var(--ink-muted);
     text-decoration: none;
     transition: color 180ms var(--ease-out);
+  }
+
+  @media (hover: hover) {
+    .share-tree__open:hover {
+      color: var(--accent);
+    }
   }
 
   /* Contents. Two renderings of the same list — a plain sticky nav on
@@ -980,6 +1020,7 @@
   }
 
   .share-toc__link {
+    position: relative;
     display: block;
     font-family: var(--font-mono);
     font-size: 0.68rem;
@@ -992,14 +1033,44 @@
     transition: color 180ms var(--ease-out), border-color 180ms var(--ease-out);
   }
 
-  .share-toc__link:hover {
-    color: var(--accent);
-    border-left-color: var(--accent);
+  .share-toc__link::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 -0.35rem 0 0;
+    border-radius: 0 4px 4px 0;
+    background: transparent;
+    pointer-events: none;
+    transition: background 180ms var(--ease-out);
   }
 
+  @media (hover: hover) {
+    .share-toc__link:hover {
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    .share-toc__link:hover::before {
+      background: rgba(10, 107, 83, 0.12);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+  }
+
+  /* The current entry has to be unmistakable in both themes: the old
+     --rule-strong hairline all but vanished against the dark surface. The
+     accent rail is drawn as a border plus a 1px inset shadow so it reads as
+     2px without shifting the text a pixel, and 600 resolves to the mono face's
+     loaded 500 weight, which is the same advance width. */
   .share-toc__link.is-current {
     color: var(--ink);
-    border-left-color: var(--rule-strong);
+    font-weight: 600;
+    border-left-color: var(--accent);
+    box-shadow: inset 1px 0 0 var(--accent);
+  }
+
+  .share-toc__link.is-current::before {
+    background: rgba(10, 107, 83, 0.18);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .share-toc__item--h3 .share-toc__link {
