@@ -94,6 +94,29 @@ function ActionButton({
 }
 
 /**
+ * The exact source. Focusable, and it owns Cmd/Ctrl+A while focused, so a
+ * click into the box followed by select-all selects the Markdown rather than
+ * the whole page.
+ */
+function SourceBox({ markdown }: { markdown: string }) {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLPreElement>) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      const range = document.createRange();
+      range.selectNodeContents(event.currentTarget);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+  };
+  return (
+    <pre className="share-source" tabIndex={0} onKeyDown={onKeyDown} aria-label="Markdown source">
+      {markdown}
+    </pre>
+  );
+}
+
+/**
  * Reader ⇄ Markdown toggle, centred, with the four actions beside it. Used
  * for the main document and, inside the popup, for every attachment.
  */
@@ -128,7 +151,7 @@ export function DocumentViewer({
 
   const body =
     view === "markdown" ? (
-      <pre className="share-source">{doc.markdown}</pre>
+      <SourceBox markdown={doc.markdown} />
     ) : (
       <Prose sections={doc.sections} />
     );

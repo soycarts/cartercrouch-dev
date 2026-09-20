@@ -621,6 +621,11 @@
     white-space: pre;
     tab-size: 4;
   }
+
+  .share-source:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+  }
 }
 
 /* Print / PDF. The PDF route prints this same page with ?print=1, which
