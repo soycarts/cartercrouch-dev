@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RenderedSection } from "@/lib/share/markdown";
 import { Prose } from "./Prose";
 
@@ -35,39 +35,59 @@ async function copyFormatted(html: string, markdown: string) {
   await navigator.clipboard.writeText(markdown);
 }
 
+/**
+ * A download link, or a copy button that says "Copied" for a moment.
+ *
+ * Both labels are always in the DOM, stacked in one grid cell, with the
+ * inactive one hidden: the button is as wide as its widest label from the
+ * start, so flipping to "Copied" no longer shoves the buttons beside it.
+ */
 function ActionButton({
   label,
+  doneLabel = "Copied",
   onClick,
   href,
 }: {
   label: string;
+  doneLabel?: string;
   onClick?: () => Promise<void>;
   href?: string;
 }) {
   const [done, setDone] = useState(false);
-  const cls = "share-action";
+
+  useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => setDone(false), 1500);
+    return () => clearTimeout(timer);
+  }, [done]);
+
   if (href) {
     return (
-      <a href={href} className={cls}>
-        {label}
+      <a href={href} className="share-action">
+        <span className="share-action__stack">
+          <span className="share-action__label">{label}</span>
+        </span>
       </a>
     );
   }
   return (
     <button
       type="button"
-      className={`${cls} ${done ? "is-done" : ""}`}
+      className={`share-action ${done ? "is-done" : ""}`}
+      aria-live="polite"
       onClick={async () => {
         try {
           await onClick?.();
           setDone(true);
-          setTimeout(() => setDone(false), 1500);
         } catch {
           /* clipboard unavailable */
         }
       }}
     >
-      {done ? "Copied" : label}
+      <span className="share-action__stack">
+        <span className={`share-action__label ${done ? "is-hidden" : ""}`}>{label}</span>
+        <span className={`share-action__label ${done ? "" : "is-hidden"}`}>{doneLabel}</span>
+      </span>
     </button>
   );
 }

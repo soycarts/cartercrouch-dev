@@ -27,7 +27,10 @@ export default function ShareLayout({
           </a>
         </div>
       </header>
-      <main className="flex-1">{children}</main>
+      {/* .share-root is the hook the reader's colour scheme hangs off: the
+          share host follows the system light/dark preference, while the
+          personal site keeps its one committed paper surface. */}
+      <main className="share-root flex-1">{children}</main>
       <footer className="shell no-print">
         <div className="kicker flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t border-rule py-6 text-ink-muted">
           <span>Shared by Carter Crouch</span>

@@ -63,6 +63,7 @@ export function AttachmentTree({
       <dialog
         ref={dialog}
         className="share-dialog"
+        aria-label={current ? `${current.name} — context file` : "Context file"}
         onClose={() => setOpen(null)}
         onClick={(e) => {
           if (e.target === e.currentTarget) setOpen(null);
@@ -72,11 +73,20 @@ export function AttachmentTree({
           <div className="share-dialog__panel" onClick={(e) => e.stopPropagation()}>
             <div className="share-dialog__head">
               <span className="kicker text-ink">{current.name}</span>
-              <button type="button" onClick={() => setOpen(null)} className="kicker text-ink-muted hover:text-ink" aria-label="Close">
+              <button
+                type="button"
+                onClick={() => setOpen(null)}
+                className="kicker text-ink-muted hover:text-ink"
+                aria-label="Close"
+              >
                 Close ×
               </button>
             </div>
-            <DocumentViewer key={current.name} doc={current} compact title={current.title} />
+            {/* The panel is the full height of the dialog; only this scrolls,
+                so a wide table keeps the head and the close button in view. */}
+            <div className="share-dialog__body">
+              <DocumentViewer key={current.name} doc={current} compact title={current.title} />
+            </div>
           </div>
         )}
       </dialog>

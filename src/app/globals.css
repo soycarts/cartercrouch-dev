@@ -263,25 +263,106 @@
 }
 
 /* ---------------------------------------------------------------------------
-   share.carter.md — the document reader. Same tokens, same rail; only the
-   prose rules below are new. Every element here comes from sanitized
-   Markdown, so the selectors are by tag on purpose.
+   share.carter.md — the document reader, after Obsidian's "Things" theme:
+   one column of prose with no rail, a coloured heading per level at weight
+   500, small round bullets, and tables that scroll rather than clip. Every
+   element here comes from sanitized Markdown, so the selectors are by tag
+   on purpose. The site's own tokens, fonts, and rules are untouched.
    --------------------------------------------------------------------------- */
+:root {
+  /* Things, light. */
+  --h1: #e4374b;
+  --h2: #d96c00;
+  --h3: #bd8e37;
+  --h4: #0cb54f;
+  --h5: #086ddd;
+  --h6: #876be0;
+  /* Reader body text, a notch below the site's 18px root. */
+  --reader-size: 15px;
+}
+
+/* Things, dark. Screen only: the PDF printer runs with media type "print",
+   and a document should print on paper whatever the reader's system says. */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --h1: #fb464c;
+    --h2: #e9973f;
+    --h3: #e0de71;
+    --h4: #44cf6e;
+    --h5: #027aff;
+    --h6: #a882ff;
+  }
+
+  /* Only the share host follows the system scheme — the personal site keeps
+     its one committed paper surface, which is why this is scoped to pages
+     carrying .share-root rather than set on :root. */
+  html:has(.share-root):not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #1b1b1b;
+    --paper-raised: #232323;
+    --ink: #dadada;
+    --ink-soft: #b6b6b6;
+    --ink-muted: #8b8b8b;
+    --rule: #333333;
+    --rule-strong: #5a5a5a;
+    --accent: #4fb894;
+  }
+}
+
+/* Explicit opt-in, should the site ever grow a theme switch. */
+@media screen {
+  :root[data-theme="dark"] {
+    --h1: #fb464c;
+    --h2: #e9973f;
+    --h3: #e0de71;
+    --h4: #44cf6e;
+    --h5: #027aff;
+    --h6: #a882ff;
+  }
+
+  html[data-theme="dark"]:has(.share-root) {
+    color-scheme: dark;
+    --paper: #1b1b1b;
+    --paper-raised: #232323;
+    --ink: #dadada;
+    --ink-soft: #b6b6b6;
+    --ink-muted: #8b8b8b;
+    --rule: #333333;
+    --rule-strong: #5a5a5a;
+    --accent: #4fb894;
+  }
+}
+
 @layer components {
   .link-mono--copy::after {
     content: none;
   }
 
+  /* The lifted H1. Rendered once above the content — by ShareHeader on the
+     page, by the viewer itself inside the attachment popup. */
+  .share-title {
+    color: var(--h1);
+    font-size: calc(var(--reader-size) * 2.125);
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  .share-title--popup {
+    margin-bottom: 1.1rem;
+  }
+
   .prose-body {
-    font-size: 1.05rem;
-    line-height: 1.65;
+    font-size: var(--reader-size);
+    line-height: 1.6;
     color: var(--ink);
-    max-width: 68ch;
     overflow-wrap: anywhere;
   }
 
-  .prose-body > :first-child {
-    margin-top: 0;
+  /* The measure applies to text, not to the things that need the room:
+     tables and code blocks take the whole column. */
+  .prose-body > :where(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6) {
+    max-width: 80ch;
   }
 
   .prose-body p,
@@ -289,39 +370,58 @@
   .prose-body ol,
   .prose-body blockquote,
   .prose-body pre,
-  .prose-body table,
+  .prose-body .table-scroll,
   .prose-body hr {
-    margin-block: 0 1.15em;
+    margin-block: 0 1.1em;
   }
 
-  .prose-body h1,
-  .prose-body h2,
-  .prose-body h3,
-  .prose-body h4 {
-    margin-block: 1.6em 0.55em;
+  /* Heading scale and colour, Things. Weight 500 across the board — the
+     colour, not the weight, carries the level. */
+  .prose-body :is(h1, h2, h3, h4, h5, h6) {
+    font-family: inherit;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+    text-transform: none;
+    margin-block: 1.15em 0.45em;
   }
 
   .prose-body h1 {
-    font-size: 1.9rem;
+    font-size: 2.125em;
+    color: var(--h1);
   }
 
   .prose-body h2 {
-    font-size: 1.5rem;
+    font-size: 1.625em;
+    color: var(--h2);
   }
 
   .prose-body h3 {
-    font-size: 1.2rem;
+    font-size: 1.375em;
+    color: var(--h3);
   }
 
-  .prose-body h4,
-  .prose-body h5,
+  .prose-body h4 {
+    font-size: 1.25em;
+    color: var(--h4);
+  }
+
+  .prose-body h5 {
+    font-size: 1.125em;
+    color: var(--h5);
+  }
+
   .prose-body h6 {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
+    font-size: 1em;
+    color: var(--h6);
+  }
+
+  /* Only the very first block of the document loses its top margin; every
+     later section keeps the air above its H2. (The second selector is the
+     owner form's standalone preview, which has no sections.) */
+  .prose-share > .share-section:first-child .prose-body > :first-child,
+  :not(.share-section) > .prose-body > :first-child {
+    margin-top: 0;
   }
 
   .prose-body strong {
@@ -342,9 +442,10 @@
     text-decoration-color: var(--accent);
   }
 
+  /* Lists: small round dots, one indent step per level, ordinary numerals. */
   .prose-body ul,
   .prose-body ol {
-    padding-left: 1.4em;
+    padding-left: 1.5em;
   }
 
   .prose-body ul {
@@ -356,12 +457,17 @@
   }
 
   .prose-body ul > li::before {
-    content: "–";
+    content: "";
     position: absolute;
-    left: -1.4em;
-    color: var(--ink-muted);
+    top: 0.62em;
+    left: -1em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-muted);
   }
 
+  /* GFM task lists keep their checkbox instead of a dot. */
   .prose-body ul > li:has(> input[type="checkbox"])::before {
     content: none;
   }
@@ -371,22 +477,20 @@
   }
 
   .prose-body ol > li::marker {
-    font-family: var(--font-mono);
-    font-size: 0.8em;
     color: var(--ink-muted);
   }
 
   .prose-body li + li {
-    margin-top: 0.35em;
+    margin-top: 0.3em;
   }
 
   .prose-body li > ul,
   .prose-body li > ol {
-    margin-block: 0.35em 0;
+    margin-block: 0.3em 0;
   }
 
   .prose-body input[type="checkbox"] {
-    margin: 0 0.45em 0 -1.4em;
+    margin: 0 0.45em 0 -1.5em;
     accent-color: var(--accent);
     vertical-align: 1px;
   }
@@ -404,14 +508,14 @@
 
   .prose-body code {
     font-family: var(--font-mono);
-    font-size: 0.82em;
+    font-size: 0.85em;
     background: color-mix(in srgb, var(--rule) 45%, transparent);
     padding: 0.1em 0.35em;
   }
 
   .prose-body pre {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.82em;
     line-height: 1.55;
     padding: 1rem 1.1rem;
     border: 1px solid var(--rule);
@@ -437,25 +541,27 @@
     height: auto;
   }
 
-  /* Tables scroll sideways on narrow screens rather than breaking words. */
-  .prose-body table {
-    display: block;
+  /* Tables never clip: each one sits in its own scroll box that is as wide
+     as the column, at a smaller size with tight cells so most of them fit
+     without scrolling at all. The wrapper is added in markdown.ts. */
+  .table-scroll {
     max-width: 100%;
     overflow-x: auto;
-    overflow-wrap: normal;
-    border-collapse: collapse;
-    font-size: 0.92rem;
-    line-height: 1.45;
+    overscroll-behavior-x: contain;
   }
 
-  .prose-body th {
-    white-space: nowrap;
+  .prose-body table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+    line-height: 1.45;
+    overflow-wrap: normal;
   }
 
   .prose-body th,
   .prose-body td {
-    min-width: 9ch;
-    padding: 0.55em 1em 0.55em 0;
+    min-width: 6ch;
+    padding: 0.4em 0.9em 0.4em 0;
     border-bottom: 1px solid var(--rule);
     text-align: left;
     vertical-align: top;
@@ -463,9 +569,9 @@
 
   .prose-body th {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.72em;
     font-weight: 500;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-muted);
     border-bottom-color: var(--rule-strong);
@@ -515,25 +621,19 @@
     margin: 0;
   }
 
-  .rail {
-    grid-template-columns: 110px minmax(0, 1fr);
-    gap: 28px;
+  .share-layout {
+    display: block;
   }
 
   .share-section {
     break-inside: auto;
   }
 
-  .share-section > h2,
-  .prose-body h1,
-  .prose-body h2,
-  .prose-body h3,
-  .prose-body h4 {
+  .prose-body :is(h1, h2, h3, h4, h5, h6) {
     break-after: avoid;
   }
 
   .prose-body pre,
-  .prose-body table,
   .prose-body blockquote,
   .prose-body li {
     break-inside: avoid;
@@ -544,23 +644,31 @@
     overflow: visible;
   }
 
+  /* On paper there is nowhere to scroll: let the table shrink to the page
+     instead, breaking inside cells if that is what it takes. */
+  .table-scroll {
+    overflow: visible;
+  }
+
   .prose-body table {
-    display: table;
     width: 100%;
+    table-layout: auto;
+    font-size: 0.78em;
+    break-inside: auto;
+  }
+
+  .prose-body th,
+  .prose-body td {
+    min-width: 0;
+    padding: 0.3em 0.6em 0.3em 0;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   .prose-body a {
     color: var(--ink);
     text-decoration-color: var(--rule);
   }
-}
-
-/* When the page is rendered for PDF we don't wait for prefers-print media
-   detection: the .share-print wrapper mirrors the print rules on screen so
-   the headless browser can be given a plain viewport if needed. */
-.share-print .rail {
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 28px;
 }
 
 /* Owner forms: the same hairline language, no rounded SaaS chrome. */
@@ -618,7 +726,8 @@
 }
 
 /* Viewer bar: toggle centred, actions beside it; stacks on narrow screens.
-   Attachment tree on the left; popup viewer for each file. */
+   Side pane on the left — file tree above the contents list — and a popup
+   viewer for each attachment. */
 @layer components {
   .share-bar {
     display: flex;
@@ -683,16 +792,41 @@
     border-color: var(--accent);
   }
 
+  /* Both labels live in the same grid cell, so the button is already as wide
+     as the longer of the two and nothing shifts when the label flips. */
+  .share-action__stack {
+    display: grid;
+    align-items: baseline;
+    justify-items: center;
+  }
+
+  .share-action__stack > .share-action__label {
+    grid-area: 1 / 1;
+  }
+
+  .share-action__label.is-hidden {
+    visibility: hidden;
+  }
+
   .share-layout {
     display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
     gap: var(--gutter);
     align-items: start;
   }
 
-  .share-tree {
+  /* Files and contents travel together, sticky beside the prose. */
+  .share-pane {
     position: sticky;
     top: 1.5rem;
+    display: grid;
+    gap: 1.75rem;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .share-tree {
     padding-top: 0.9rem;
     border-top: 1px solid var(--rule);
   }
@@ -740,15 +874,78 @@
     color: var(--ink-soft);
   }
 
+  /* Contents. Two renderings of the same list — a plain sticky nav on
+     desktop, a collapsed <details> below 900px — with CSS choosing one, so
+     neither needs a media query to be resolved in JavaScript first. */
+  .share-toc__narrow {
+    display: none;
+  }
+
+  .share-toc__wide > .kicker {
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  .share-toc__narrow > summary {
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+  }
+
+  .share-toc__list {
+    margin-top: 0.6rem;
+    list-style: none;
+  }
+
+  .share-toc__link {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    padding: 0.28rem 0 0.28rem 0.6rem;
+    border-left: 1px solid var(--rule);
+    color: var(--ink-soft);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: color 180ms var(--ease-out), border-color 180ms var(--ease-out);
+  }
+
+  .share-toc__link:hover {
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+
+  .share-toc__link.is-current {
+    color: var(--ink);
+    border-left-color: var(--rule-strong);
+  }
+
+  .share-toc__item--h3 .share-toc__link {
+    padding-left: 1.4rem;
+    font-size: 0.7rem;
+  }
+
+  .share-toc__item--h4 .share-toc__link {
+    padding-left: 2.2rem;
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+  }
+
+  /* Attachment popup: most of the viewport, scrolling inside, so a wide
+     table has somewhere to go. */
   .share-dialog {
-    width: min(960px, calc(100% - 2rem));
-    max-height: calc(100vh - 3rem);
+    width: min(1100px, 96vw);
+    max-width: min(1100px, 96vw);
+    height: 92vh;
+    max-height: 92vh;
     margin: auto;
     padding: 0;
     border: 1px solid var(--rule);
     background: var(--paper);
     color: var(--ink);
     box-shadow: 0 24px 60px rgba(1, 22, 20, 0.14);
+    overflow: hidden;
   }
 
   .share-dialog::backdrop {
@@ -756,21 +953,29 @@
   }
 
   .share-dialog__panel {
-    padding: 1.25rem 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
   }
 
   .share-dialog__head {
     display: flex;
+    flex: 0 0 auto;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    padding-bottom: 0.9rem;
+    padding: 1.1rem 1.5rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
   }
 
-  /* Inside the popup the section rail stacks: there isn't room for it. */
-  .share-viewer--compact .rail {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
+  .share-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.25rem 1.5rem 2rem;
   }
 }
 
@@ -779,16 +984,33 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .share-tree {
+  .share-pane {
     position: static;
+    max-height: none;
+    overflow: visible;
+    gap: 1rem;
+  }
+
+  .share-toc__wide {
+    display: none;
+  }
+
+  .share-toc__narrow {
+    display: block;
   }
 
   .share-dialog {
     width: calc(100% - 1rem);
+    max-width: calc(100% - 1rem);
+    height: calc(100vh - 1rem);
     max-height: calc(100vh - 1rem);
   }
 
-  .share-dialog__panel {
+  .share-dialog__head {
+    padding: 0.9rem 1rem 0.8rem;
+  }
+
+  .share-dialog__body {
     padding: 1rem 1rem 1.5rem;
   }
 }
