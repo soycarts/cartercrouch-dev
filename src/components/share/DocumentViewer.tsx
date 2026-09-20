@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { RenderedSection } from "@/lib/share/markdown";
 import { Prose } from "./Prose";
+import { ReaderControls } from "./ReaderControls";
 
 export type ViewerDocument = {
   /** Sections for the styled reader (sanitized HTML). */
@@ -135,6 +136,10 @@ export function DocumentViewer({
           <ActionButton label="Download formatted" href={`${doc.pdfUrl}?download=1`} />
           <ActionButton label="Download markdown" href={`${doc.markdownUrl}?download=1`} />
         </div>
+        {/* Theme and text size belong to the page, not to a document, so the
+            popup's own bar leaves them out — one set of controls, on the bar
+            behind it, driving both. */}
+        {!compact && <ReaderControls />}
       </div>
       {view === "markdown" ? (
         <pre className="share-source mt-8">{doc.markdown}</pre>

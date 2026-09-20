@@ -286,15 +286,22 @@
   --reader-size: 15px;
 }
 
-/* Screen only: the PDF printer runs with media type "print", and a document
-   should print on paper whatever the reader's system says. */
-@media screen and (prefers-color-scheme: dark) {
-  /* Only the share host follows the system scheme — the personal site keeps
-     its one committed paper surface, which is why this is scoped to pages
-     carrying .share-root rather than set on :root. The heading palette needs
-     no dark variant: the accents are shared, and h1/h2/h6 ride on --ink and
-     --ink-muted, which flip here. */
-  html:has(.share-root):not([data-theme="light"]) {
+/* Dark mode is a choice the reader makes, not just a system setting: the
+   blocking script in the root layout's <head> reads localStorage["share:theme"]
+   and writes data-share-theme="light|dark" onto <html> before the first paint,
+   resolving "system" through matchMedia at that moment. The switch in the
+   share bar rewrites it.
+
+   Screen only, deliberately: the PDF printer runs with media type "print",
+   and a document should print on paper whatever the reader chose on screen.
+
+   Only the share host is affected — the personal site keeps its one committed
+   paper surface — which is why every rule is scoped to pages carrying
+   .share-root rather than set on :root. The heading palette needs no dark
+   variant: the accents are shared, and h1/h2/h6 ride on --ink and --ink-muted,
+   which flip here. */
+@media screen {
+  html[data-share-theme="dark"]:has(.share-root) {
     color-scheme: dark;
     --paper: #1b1b1b;
     --paper-raised: #232323;
@@ -307,9 +314,11 @@
   }
 }
 
-/* Explicit opt-in, should the site ever grow a theme switch. */
-@media screen {
-  html[data-theme="dark"]:has(.share-root) {
+/* Without JavaScript the attribute is never written, so fall back to the
+   system preference rather than pinning every such reader to light. Once the
+   script has run this can no longer match. */
+@media screen and (prefers-color-scheme: dark) {
+  html:not([data-share-theme]):has(.share-root) {
     color-scheme: dark;
     --paper: #1b1b1b;
     --paper-raised: #232323;
@@ -781,6 +790,37 @@
     background: var(--ink);
   }
 
+  /* Six tabs' worth of chrome sits at the right end of the bar; the reader
+     controls use the same tab, one notch narrower. */
+  .share-tab--tight {
+    padding: 0.45rem 0.6rem;
+  }
+
+  .share-tab.is-disabled {
+    color: var(--ink-muted);
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  /* Reader controls: theme switch and text size, travelling together. They
+     take the free space on the bar so the toggle and the actions keep their
+     own cluster on the left. */
+  .share-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-left: auto;
+  }
+
+  /* The size readout doubles as the reset. Tabular digits and a fixed measure
+     keep the group from twitching as the number changes. */
+  .share-size {
+    min-width: 2.6em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    border-inline: 1px solid var(--rule);
+  }
+
   .share-actions {
     display: flex;
     flex-wrap: wrap;
@@ -998,6 +1038,12 @@
 }
 
 @media (max-width: 900px) {
+  .share-controls {
+    flex-basis: 100%;
+    justify-content: center;
+    margin-left: 0;
+  }
+
   .share-layout {
     grid-template-columns: minmax(0, 1fr);
   }

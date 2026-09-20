@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Newsreader, IBM_Plex_Mono } from "next/font/google";
+import { READER_PREFS_SCRIPT } from "@/lib/share/reader-prefs";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -35,7 +36,22 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${newsreader.variable} ${plexMono.variable} h-full antialiased`}
+      // The script below writes to this element before React sees it.
+      suppressHydrationWarning
     >
+      <head>
+        {/*
+          The share reader's stored theme and text size, applied before the
+          first paint so a reader who chose dark never gets a white flash.
+          It has to live here: only the root layout can contribute to <head>,
+          and a nested layout's inline script would sit in <body>, after the
+          point where the browser is free to paint the page background.
+          Harmless on the personal site — every dark token is gated behind
+          :has(.share-root), and --reader-size has no consumer outside the
+          reader — so the site keeps its one committed paper surface.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: READER_PREFS_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col font-serif">{children}</body>
     </html>
   );
