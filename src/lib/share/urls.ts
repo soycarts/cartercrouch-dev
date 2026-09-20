@@ -43,6 +43,30 @@ export function attachmentPdfUrl(id: string, name: string): string {
   return `${attachmentUrl(id, name)}/pdf`;
 }
 
+/**
+ * Dynamic segments reach a route handler already decoded, but reach a *page*
+ * exactly as they appeared in the URL — so "measurement%20catalogue.md" stays
+ * encoded and matches no attachment. Decode once at the page boundary, and
+ * fall back to the raw segment when it is not valid percent-encoding rather
+ * than throwing a 500 at a reader who mistyped a URL.
+ */
+export function decodeRouteSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
+ * The attachment's own reader page. The bare /files/:name URL already serves
+ * the Markdown — attachment names end in .md, so that is the honest thing for
+ * it to return — which is why the page hangs off /view, beside /pdf.
+ */
+export function attachmentPageUrl(id: string, name: string): string {
+  return `${attachmentUrl(id, name)}/view`;
+}
+
 /** A filesystem-safe filename derived from the title, e.g. "agent-village.md". */
 export function downloadFilename(
   title: string | null,

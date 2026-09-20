@@ -893,9 +893,22 @@
     margin-top: 0.35rem;
   }
 
+  /* A row is the file name plus the control that promotes it to a page; the
+     hairline belongs to the pair, not to the name alone. */
+  .share-tree__row {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .share-tree__row:has(.share-tree__item[aria-current="true"]) {
+    border-bottom-color: var(--rule-strong);
+  }
+
   .share-tree__item {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
     text-align: left;
     font-family: var(--font-mono);
     font-size: 0.72rem;
@@ -904,7 +917,7 @@
     color: var(--ink);
     background: none;
     border: 0;
-    border-bottom: 1px solid var(--rule);
+    text-decoration: none;
     cursor: pointer;
     overflow-wrap: anywhere;
     transition: color 180ms var(--ease-out);
@@ -919,17 +932,27 @@
     color: var(--ink-muted);
   }
 
-  .share-tree__item:hover {
-    color: var(--accent);
-  }
-
   .share-tree__item[aria-current="true"] {
     color: var(--ink);
-    border-bottom-color: var(--rule-strong);
   }
 
   .share-tree__item:not([aria-current="true"]) {
     color: var(--ink-soft);
+  }
+
+  /* "Open as page": a separate target from the name, which opens the popup. */
+  .share-tree__open {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1;
+    color: var(--ink-muted);
+    text-decoration: none;
+    transition: color 180ms var(--ease-out);
   }
 
   /* Contents. Two renderings of the same list — a plain sticky nav on
@@ -1026,6 +1049,13 @@
     padding: 1.1rem 1.5rem 0.9rem;
     border-bottom: 1px solid var(--rule);
     background: var(--paper);
+  }
+
+  .share-dialog__tools {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 1.1rem;
+    white-space: nowrap;
   }
 
   .share-dialog__body {
