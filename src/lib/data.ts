@@ -80,20 +80,20 @@ export const projects: Project[] = [
   {
     name: "Bountify.ai",
     description:
-      "Turn data gaps into bounties — crowdsource the data your AI lab is missing via incentivised tasks.",
+      "Builds and supports initiatives across careers, agent oversight, and applied AI, including Jobmaxxing.ai and approval.md.",
     // Run as a business — stack kept proprietary.
     tags: [],
     website: "https://bountify.ai",
-    image: "/projects/bountify.jpg",
+    image: "/projects/bountify-2026-09.jpg",
   },
   {
     name: "Approval.md",
     description:
-      "Human sign-off for AI agents — a file-based convention and runtime gating side-effecting actions.",
+      "A harness-agnostic, open-source framework for approving agent actions with a human in the loop.",
     // Run as a business — stack kept proprietary.
     tags: [],
     website: "https://approval.md",
-    image: "/projects/approval.jpg",
+    image: "/projects/approval-2026-09.jpg",
   },
   {
     name: "Jobmaxxing.ai",
@@ -103,6 +103,14 @@ export const projects: Project[] = [
     tags: [],
     website: "https://jobmaxxing.ai",
     image: "/projects/jobmaxxing.jpg",
+  },
+  {
+    name: "ZZZ.bot",
+    description: "An Approved messaging service for agents and agent swarms.",
+    // Run as a business — stack kept proprietary.
+    tags: [],
+    website: "https://zzz.bot",
+    image: "/projects/zzz.jpg",
   },
   {
     name: "Yappy.fyi",
