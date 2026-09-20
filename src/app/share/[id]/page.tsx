@@ -125,7 +125,12 @@ export default async function SharePage({
 
   return (
     <div className="shell">
-      <ShareHeader title={rendered.title} createdAt={doc.createdAt} updatedAt={doc.updatedAt} />
+      <ShareHeader
+        title={rendered.title}
+        createdAt={doc.createdAt}
+        updatedAt={doc.updatedAt}
+        href={readerUrl(doc.id)}
+      />
       {hasPane ? (
         <div className="share-layout">
           <aside className="share-pane">

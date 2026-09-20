@@ -337,6 +337,20 @@
     letter-spacing: -0.01em;
   }
 
+  /* On the main document the title is the share link. Styled as if it were
+     still plain text; the hover rule in the rule colour is the only tell. */
+  .share-title__link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .share-title__link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.12em;
+  }
+
   .share-title--popup {
     margin-bottom: 1.1rem;
   }
