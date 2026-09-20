@@ -23,7 +23,10 @@ const nextConfig: NextConfig = {
         { source: "/robots.txt", has: onShareHost, destination: "/share/robots.txt" },
         { source: `/:id(${ID}).md`, has: onShareHost, destination: "/share/:id/md" },
         { source: `/:id(${ID}).pdf`, has: onShareHost, destination: "/share/:id/pdf" },
-        { source: "/:path*", has: onShareHost, destination: "/share/:path*" },
+        // Everything else on the share host maps onto /share/*, except Next's
+        // own asset and image paths, which must stay where they are or every
+        // stylesheet and script 404s on the share hostname.
+        { source: "/:path((?!_next/|favicon\\.ico$).*)", has: onShareHost, destination: "/share/:path" },
         // Same suffix routes on the /share mount itself, so local dev and the
         // cartercrouch.dev mirror behave identically to the share host.
         { source: `/share/:id(${ID}).md`, destination: "/share/:id/md" },
