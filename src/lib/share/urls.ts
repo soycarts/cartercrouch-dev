@@ -23,24 +23,34 @@ export function internalBase(): string {
   return origin && origin.endsWith("/share") ? "/share" : "";
 }
 
-export function readerUrl(id: string): string {
-  return `${shareOrigin()}/${id}`;
+/**
+ * Everything a document owns hangs off one base. An archived draft's slug
+ * sits between the ID and the rest — `/:id/draft1_0.md`, `/:id/draft1_0/files/
+ * :name` — so every builder below takes the same optional last argument and
+ * a caller that has a slug in hand never has to build a path by hand.
+ */
+function documentBase(id: string, version?: string | null): string {
+  return version ? `${shareOrigin()}/${id}/${version}` : `${shareOrigin()}/${id}`;
 }
 
-export function markdownUrl(id: string): string {
-  return `${shareOrigin()}/${id}.md`;
+export function readerUrl(id: string, version?: string | null): string {
+  return documentBase(id, version);
 }
 
-export function pdfUrl(id: string): string {
-  return `${shareOrigin()}/${id}.pdf`;
+export function markdownUrl(id: string, version?: string | null): string {
+  return `${documentBase(id, version)}.md`;
 }
 
-export function attachmentUrl(id: string, name: string): string {
-  return `${shareOrigin()}/${id}/files/${encodeURIComponent(name)}`;
+export function pdfUrl(id: string, version?: string | null): string {
+  return `${documentBase(id, version)}.pdf`;
 }
 
-export function attachmentPdfUrl(id: string, name: string): string {
-  return `${attachmentUrl(id, name)}/pdf`;
+export function attachmentUrl(id: string, name: string, version?: string | null): string {
+  return `${documentBase(id, version)}/files/${encodeURIComponent(name)}`;
+}
+
+export function attachmentPdfUrl(id: string, name: string, version?: string | null): string {
+  return `${attachmentUrl(id, name, version)}/pdf`;
 }
 
 /**
@@ -63,8 +73,8 @@ export function decodeRouteSegment(segment: string): string {
  * the Markdown — attachment names end in .md, so that is the honest thing for
  * it to return — which is why the page hangs off /view, beside /pdf.
  */
-export function attachmentPageUrl(id: string, name: string): string {
-  return `${attachmentUrl(id, name)}/view`;
+export function attachmentPageUrl(id: string, name: string, version?: string | null): string {
+  return `${attachmentUrl(id, name, version)}/view`;
 }
 
 /** A filesystem-safe filename derived from the title, e.g. "agent-village.md". */

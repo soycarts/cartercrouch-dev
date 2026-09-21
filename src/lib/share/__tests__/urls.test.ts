@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { downloadFilename, markdownUrl, pdfUrl, readerUrl } from "../urls";
+import {
+  attachmentPageUrl,
+  attachmentPdfUrl,
+  attachmentUrl,
+  downloadFilename,
+  markdownUrl,
+  pdfUrl,
+  readerUrl,
+} from "../urls";
 
 describe("share urls", () => {
   afterEach(() => {
@@ -16,6 +24,31 @@ describe("share urls", () => {
   it("honour an explicit origin for local dev", () => {
     process.env.NEXT_PUBLIC_SHARE_ORIGIN = "http://localhost:3000/share/";
     expect(readerUrl("abc")).toBe("http://localhost:3000/share/abc");
+  });
+
+  it("put an archived draft's slug between the id and everything else", () => {
+    expect(readerUrl("abc", "draft1_0")).toBe("https://share.carter.md/abc/draft1_0");
+    expect(markdownUrl("abc", "draft1_0")).toBe("https://share.carter.md/abc/draft1_0.md");
+    expect(pdfUrl("abc", "draft1_0")).toBe("https://share.carter.md/abc/draft1_0.pdf");
+    expect(attachmentUrl("abc", "spec v2.md", "draft1_0")).toBe(
+      "https://share.carter.md/abc/draft1_0/files/spec%20v2.md",
+    );
+    expect(attachmentPageUrl("abc", "spec.md", "draft1_0")).toBe(
+      "https://share.carter.md/abc/draft1_0/files/spec.md/view",
+    );
+    expect(attachmentPdfUrl("abc", "spec.md", "draft1_0")).toBe(
+      "https://share.carter.md/abc/draft1_0/files/spec.md/pdf",
+    );
+  });
+
+  it("build the current document's URLs unchanged without a slug", () => {
+    for (const none of [undefined, null]) {
+      expect(readerUrl("abc", none)).toBe("https://share.carter.md/abc");
+      expect(markdownUrl("abc", none)).toBe("https://share.carter.md/abc.md");
+      expect(attachmentUrl("abc", "spec.md", none)).toBe(
+        "https://share.carter.md/abc/files/spec.md",
+      );
+    }
   });
 
   it("derives safe filenames", () => {
