@@ -23,6 +23,40 @@ const schema = {
 };
 
 /**
+ * The same filter, plus the three tags the diff renderer wraps changed words
+ * in and the class attribute its wrappers carry.
+ *
+ * It exists so that every string the diff emits has been through
+ * rehype-sanitize — including the nodes the renderer builds itself. Allowing
+ * `className` here is not a hole: the document's own class attributes were
+ * already dropped by `schema` on the way in, so by the time this pass runs the
+ * only class names in the tree are ours.
+ *
+ * Clobbering is off: `schema` already prefixed every id with `user-content-`,
+ * and a second pass would prefix it twice.
+ */
+const baseAttributes = (schema.attributes ?? {}) as Record<string, unknown[]>;
+const withClass = (tag: string) => [...(baseAttributes[tag] ?? []), "className"];
+/** rehype-sanitize's own option type, without importing its transitive dep. */
+type SanitizeSchema = NonNullable<Parameters<typeof rehypeSanitize>[0]>;
+
+const decoratedSchema: SanitizeSchema = {
+  ...schema,
+  clobber: [],
+  clobberPrefix: "",
+  tagNames: [...(schema.tagNames ?? []), "mark", "del", "ins"],
+  attributes: {
+    ...baseAttributes,
+    div: withClass("div"),
+    p: withClass("p"),
+    span: withClass("span"),
+    mark: ["className"],
+    del: ["className"],
+    ins: ["className"],
+  },
+} as SanitizeSchema;
+
+/**
  * Put every table in its own horizontally scrollable box so a wide table
  * scrolls instead of pushing the column (or the PDF page) out of shape.
  *
@@ -145,6 +179,204 @@ export function closeListsAtLazyLines(markdown: string): string {
   return out.join("\n");
 }
 
+/* ---------------------------------------------------------------------------
+   Block boundaries. The diff works block by block, and its idea of a block
+   has to be the renderer's own or a changed paragraph lands half inside the
+   block above it. Both start from `closeListsAtLazyLines` output — the source
+   the parser actually sees — and `topLevelBlocks` below reads the boundaries
+   straight off the mdast so the two can be tested against each other.
+   --------------------------------------------------------------------------- */
+
+const ATX = /^ {0,3}#{1,6}(\s|$)/;
+const THEMATIC = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/;
+/** A `===`/`---` underline, which turns the paragraph above it into a heading. */
+const SETEXT = /^ {0,3}(?:=+|-+)[ \t]*$/;
+const QUOTE = /^ {0,3}>/;
+/** The start of a raw-HTML block, which the renderer drops but the splitter
+ *  still has to keep out of the paragraph beside it. */
+const BLOCK_HTML = /^ {0,3}<[A-Za-z/!?]/;
+/** A GFM delimiter row: `|---|:--:|`. Checked together with an actual pipe. */
+const TABLE_DELIM = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+
+export type BlockKind =
+  | "heading"
+  | "paragraph"
+  | "list-item"
+  | "table"
+  | "code"
+  | "quote"
+  | "rule"
+  | "html";
+
+/** One unit of change: what the rendered diff marks added, removed, or kept. */
+export type SourceBlock = {
+  kind: BlockKind;
+  /** The block's own lines, joined. Never the blank lines around it. */
+  text: string;
+  /** 1-based, into `closeListsAtLazyLines(markdown)` — not the raw input. */
+  startLine: number;
+  endLine: number;
+};
+
+function isTableDelimiter(line: string): boolean {
+  return line.includes("|") && TABLE_DELIM.test(line);
+}
+
+/**
+ * Split a document into the blocks the diff compares.
+ *
+ * A block is a heading, a paragraph, one list item, a table, a fenced code
+ * block, a blockquote, or a thematic break. Two of those are choices worth
+ * naming:
+ *
+ * - **A list item, not a list.** Adding one bullet to a twelve-item list is
+ *   one added block, not a rewritten list.
+ * - **A table, not a table row.** A row on its own is not a table — rendered
+ *   alone it is a paragraph of pipe characters — and the rendered diff shows
+ *   a changed table whole anyway. The Markdown mode is line-based, so a
+ *   single changed row still reads as a single changed line there.
+ *
+ * Blank lines belong to no block; every block's lines are contiguous.
+ */
+export function splitBlocks(markdown: string): SourceBlock[] {
+  const lines = closeListsAtLazyLines(markdown).split("\n");
+  const blocks: SourceBlock[] = [];
+  /** `from` and `to` are 1-based and inclusive. */
+  const push = (kind: BlockKind, from: number, to: number) =>
+    blocks.push({
+      kind,
+      text: lines.slice(from - 1, to).join("\n"),
+      startLine: from,
+      endLine: to,
+    });
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const n = i + 1;
+
+    // Blank lines belong to no block.
+    if (line.trim() === "") {
+      i += 1;
+      continue;
+    }
+
+    // A fence runs to its closer, whatever it contains.
+    const fenced = FENCE.exec(line);
+    if (fenced) {
+      const marker = fenced[1];
+      let j = i + 1;
+      while (j < lines.length) {
+        const closer = FENCE.exec(lines[j]);
+        j += 1;
+        if (closer && closer[1][0] === marker[0] && closer[1].length >= marker.length) break;
+      }
+      push("code", n, j);
+      i = j;
+      continue;
+    }
+
+    if (ATX.test(line)) {
+      push("heading", n, n);
+      i += 1;
+      continue;
+    }
+
+    // At the start of a block `---` is a rule; under a paragraph it is a
+    // setext heading, which the paragraph branch below handles.
+    if (THEMATIC.test(line)) {
+      push("rule", n, n);
+      i += 1;
+      continue;
+    }
+
+    const marker = LIST_MARKER.exec(line);
+    if (marker) {
+      const contentColumn = marker[1].length + marker[2].length + marker[3].length;
+      let j = i + 1;
+      while (j < lines.length) {
+        const next = lines[j];
+        if (next.trim() === "") break;
+        if (LIST_MARKER.test(next)) break; // a nested item is its own block
+        if (next.length - next.trimStart().length < contentColumn) break;
+        j += 1;
+      }
+      push("list-item", n, j);
+      i = j;
+      continue;
+    }
+
+    if (QUOTE.test(line)) {
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() !== "" && QUOTE.test(lines[j])) j += 1;
+      push("quote", n, j);
+      i = j;
+      continue;
+    }
+
+    // A table announces itself with the delimiter row under its header.
+    if (line.includes("|") && isTableDelimiter(lines[i + 1] ?? "")) {
+      let j = i + 1;
+      while (j < lines.length) {
+        const row = lines[j];
+        if (row.trim() === "" || ATX.test(row) || FENCE.test(row) || !row.includes("|")) break;
+        j += 1;
+      }
+      push("table", n, j);
+      i = j;
+      continue;
+    }
+
+    // Paragraph, or a raw-HTML block: to the next blank line, or the next
+    // line that opens a block of its own. A setext underline joins it and
+    // makes it a heading.
+    const html = BLOCK_HTML.test(line);
+    let j = i + 1;
+    let setext = false;
+    while (j < lines.length) {
+      const next = lines[j];
+      if (next.trim() === "") break;
+      if (!html && SETEXT.test(next)) {
+        setext = true;
+        j += 1;
+        break;
+      }
+      if (
+        ATX.test(next) ||
+        FENCE.test(next) ||
+        THEMATIC.test(next) ||
+        QUOTE.test(next) ||
+        LIST_MARKER.test(next) ||
+        (next.includes("|") && isTableDelimiter(lines[j + 1] ?? ""))
+      ) {
+        break;
+      }
+      j += 1;
+    }
+    push(html ? "html" : setext ? "heading" : "paragraph", n, j);
+    i = j;
+  }
+
+  return blocks;
+}
+
+const mdastProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkBreaks);
+
+/** Where each of the renderer's own top-level blocks starts and ends, in
+ *  `closeListsAtLazyLines` lines. Read off the mdast, so it is the parser's
+ *  answer rather than a second opinion — which is what makes it worth
+ *  testing `splitBlocks` against. */
+export function topLevelBlocks(
+  markdown: string,
+): { type: string; startLine: number; endLine: number }[] {
+  const root = mdastProcessor.parse(closeListsAtLazyLines(markdown));
+  return root.children.flatMap((node) =>
+    node.position
+      ? [{ type: node.type, startLine: node.position.start.line, endLine: node.position.end.line }]
+      : [],
+  );
+}
+
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
@@ -158,6 +390,7 @@ const processor = unified()
   .use(rehypeWrapTables);
 
 const stringifier = unified().use(rehypeStringify);
+const decorator = unified().use(rehypeSanitize, decoratedSchema);
 
 export type RenderedSection = {
   /** Plain-text heading of the H2 that opened this section, if any. */
@@ -316,4 +549,33 @@ export async function renderDocument(markdown: string): Promise<RenderedDocument
 export async function renderHtml(markdown: string): Promise<string> {
   const root = await toTree(markdown);
   return stringify(elementsOf(root));
+}
+
+/** The reader's own parse-and-sanitize, for the diff renderer to decorate. */
+export async function toSanitizedTree(markdown: string): Promise<HastRoot> {
+  return toTree(markdown);
+}
+
+/**
+ * Stringify nodes the diff renderer has decorated, through rehype-sanitize
+ * once more. The document's markup was filtered on the way in; this pass is
+ * about the wrappers the diff adds afterwards — nothing it emits reaches a
+ * reader unfiltered, and no HTML is ever assembled by string surgery.
+ */
+export function stringifyDecorated(nodes: RootContent[]): string {
+  const clean = decorator.runSync({ type: "root", children: nodes }) as HastRoot;
+  return stringifier.stringify(clean);
+}
+
+/** A plain-`<p>` stand-in for a block the renderer drops (raw HTML, say), so
+ *  a change to one is still visible instead of silently empty. */
+export function stringifyPlainBlock(text: string): string {
+  return stringifyDecorated([
+    {
+      type: "element",
+      tagName: "p",
+      properties: { className: ["share-diff-plain"] },
+      children: [{ type: "text", value: text }],
+    },
+  ]);
 }
