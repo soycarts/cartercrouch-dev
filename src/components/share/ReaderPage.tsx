@@ -17,6 +17,8 @@ export type ReaderPageProps = {
   initialView?: "reader" | "markdown";
   /** Open on the diff rather than on the draft — `?diff=1`. */
   initialDiff?: boolean;
+  /** The header's diff control on an archived page. */
+  diffLink?: { on: boolean; href: string } | null;
   documentName: string;
   documentHref: string;
   files: ViewerAttachment[];
@@ -44,6 +46,7 @@ export function ReaderPage({
   doc,
   initialView = "reader",
   initialDiff = false,
+  diffLink = null,
   documentName,
   documentHref,
   files,
@@ -77,6 +80,7 @@ export function ReaderPage({
         updatedAt={updatedAt}
         versionLabel={versionLabel}
         superseded={superseded}
+        diffLink={diffLink}
       />
       <DocumentViewer
         doc={doc}
@@ -85,7 +89,6 @@ export function ReaderPage({
         aside={aside}
         versionLabel={versionLabel}
         versions={versions}
-        superseded={superseded}
       />
     </div>
   );

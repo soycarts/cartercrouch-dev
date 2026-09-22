@@ -181,6 +181,27 @@ function initialDiff(view: ShareView, search: { diff?: string }): boolean {
   return view.slug !== null && search.diff === "1";
 }
 
+/**
+ * The header's diff control on an archived page: whether the diff is on, and
+ * the link that flips it. The comparison is computed only for `?diff=1`, so
+ * flipping it is a navigation either way, and the link carries the reading
+ * mode along so the page comes back in the mode it left.
+ */
+function diffLink(
+  view: ShareView,
+  file: string | null,
+  search: { diff?: string; view?: string },
+): { on: boolean; href: string } | null {
+  if (!view.slug) return null;
+  const on = search.diff === "1";
+  const base = hrefWithin(view.current, view.slug, file);
+  const params = new URLSearchParams();
+  if (!on) params.set("diff", "1");
+  if (search.view === "markdown") params.set("view", "markdown");
+  const query = params.toString();
+  return { on, href: query ? `${base}?${query}` : base };
+}
+
 export type PrintProps = {
   kind: "print";
   title: string | null;
@@ -247,6 +268,7 @@ export async function sharePageProps(
       },
       initialView: search.view === "markdown" ? "markdown" : "reader",
       initialDiff: initialDiff(view, search),
+      diffLink: diffLink(view, null, search),
       documentName: documentFilename(doc),
       documentHref: readerUrl(doc.id, slug),
       files,
@@ -291,6 +313,7 @@ export async function attachmentPageProps(
     },
     initialView: search.view === "markdown" ? "markdown" : "reader",
     initialDiff: initialDiff(view, search),
+    diffLink: diffLink(view, file.name, search),
     documentName: documentFilename(doc),
     documentHref: readerUrl(doc.id, slug),
     files,

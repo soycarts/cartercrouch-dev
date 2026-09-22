@@ -8,6 +8,7 @@ export function ShareHeader({
   href = null,
   versionLabel = null,
   superseded = null,
+  diffLink = null,
 }: {
   title: string | null;
   createdAt: string;
@@ -16,6 +17,8 @@ export function ShareHeader({
   versionLabel?: string | null;
   /** Set only on an archived draft: when it was replaced, and by what. */
   superseded?: { at: string; currentHref: string } | null;
+  /** The diff-vs-live control, a link either way: on or off. */
+  diffLink?: { on: boolean; href: string } | null;
   /**
    * Canonical URL of the thing being titled. Given one, the H1 becomes the
    * share link itself — the most obvious place to grab it from. Omitted for
@@ -41,6 +44,19 @@ export function ShareHeader({
           <span>Draft {versionLabel ?? "—"}</span>
           <span aria-hidden="true">·</span>
           <span>superseded {formatDate(superseded.at)}</span>
+          {diffLink && (
+            <>
+              <span aria-hidden="true">·</span>
+              <a
+                href={diffLink.href}
+                className={`share-superseded__link share-superseded__diff ${diffLink.on ? "is-active" : ""}`}
+                aria-pressed={diffLink.on}
+                title={diffLink.on ? "Back to the draft as written" : "Show only what changed since this draft"}
+              >
+                {diffLink.on ? "Diff vs live ✓" : "Diff vs live"}
+              </a>
+            </>
+          )}
           <span aria-hidden="true">·</span>
           <a href={superseded.currentHref} className="share-superseded__link">
             Current draft →

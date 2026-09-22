@@ -180,7 +180,6 @@ export function DocumentViewer({
   aside = null,
   versionLabel = null,
   versions = [],
-  superseded = null,
 }: {
   doc: ViewerDocument;
   initialView?: View;
@@ -192,61 +191,31 @@ export function DocumentViewer({
   /** The draft being shown, and every draft to choose between. */
   versionLabel?: string | null;
   versions?: VersionOption[];
-  /** Set only on an archived draft. The diff control needs no more than
-   *  whether there is a current draft this one is behind. */
-  superseded?: { at: string; currentHref: string } | null;
   /** Side pane (file tree, contents). The bar spans the full width above
    *  both pane and body, so it has the whole measure to stay on one row. */
   aside?: React.ReactNode;
 }) {
   const [view, setView] = useState<View>(initialView);
-  // The diff is offered on an archived page and nowhere else: the current
-  // draft has nothing to be compared with, and the attachment popup shows a
-  // file of the draft you are already reading.
-  const canDiff = !compact && superseded !== null;
-  // The comparison is computed on request, so the control has two jobs. With
-  // the payload in the props it is a switch. Without it — this page was
-  // opened without ?diff=1 — it is a link, and pressing it fetches the page
-  // that has it.
-  const hasDiff = doc.diff !== undefined;
-  const [diff, setDiff] = useState(hasDiff && initialDiff);
+  // The diff is on when the page was asked for it and the server sent it.
+  // Switching it on or off is the header's link, a navigation either way,
+  // because the comparison is computed only for ?diff=1.
+  const diff = initialDiff && doc.diff !== undefined;
 
-  /** This page's URL with both axes of the diff written into it. */
-  const diffUrl = (on: boolean, mode: View) => {
-    const url = new URL(window.location.href);
-    if (on) url.searchParams.set("diff", "1");
-    else url.searchParams.delete("diff");
-    // The mode travels with it, so a diff someone sends opens in the mode
-    // they were reading it in.
-    if (mode === "markdown") url.searchParams.set("view", "markdown");
-    else url.searchParams.delete("view");
-    return `${url.pathname}${url.search}${url.hash}`;
-  };
-
-  // Mirror the state into the URL so a diff is a link someone can send,
-  // without a navigation: the page's own props already hold both drafts.
-  // Only the viewer that owns the control writes the URL — a popup open over
-  // an archived page must not strip its ?diff=1.
+  // Keep the reading mode in the URL while the diff is on, so the header's
+  // link and a copied address both come back in this mode. Only the viewer
+  // that owns the page writes the URL, never the attachment popup.
   const mounted = useRef(false);
   useEffect(() => {
-    if (!canDiff || !hasDiff) return;
+    if (compact || !diff) return;
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
-    window.history.replaceState(null, "", diffUrl(diff, view));
-  }, [canDiff, hasDiff, diff, view]);
-
-  const toggleDiff = () => {
-    if (hasDiff) {
-      setDiff((was) => !was);
-      return;
-    }
-    // Nothing to show yet: ask the server for it. A full navigation is the
-    // honest way to say "this needs work done", and it lands on a URL that
-    // is already the shareable one.
-    window.location.assign(diffUrl(true, view));
-  };
+    const url = new URL(window.location.href);
+    if (view === "markdown") url.searchParams.set("view", "markdown");
+    else url.searchParams.delete("view");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [compact, diff, view]);
 
   const tab = (target: View, label: string) => (
     <button
@@ -319,29 +288,6 @@ export function DocumentViewer({
             {tab("reader", "Reader")}
             {tab("markdown", "Markdown")}
           </div>
-          {/* Right of the view toggle, boxed like the draft menu: it is not a
-              third view, it is what the two views are pointed at.
-
-              "DIFF", not "DIFF VS LIVE", in the same narrower padding the
-              reader controls use: with those two it is 1132px of the 1180px
-              measure at 1440, and 1128 of 1128 at 1200 — one row at both.
-              The full label is 64px wider and fits at neither. The title,
-              the aria-label and the summary line under the bar all say
-              which way round the comparison runs. */}
-          {canDiff && (
-            <div className="share-diffbox">
-              <button
-                type="button"
-                className={`share-tab share-tab--tight share-diff-toggle ${diff ? "is-active" : ""}`}
-                aria-pressed={diff}
-                aria-label="Diff vs live"
-                title="Diff vs live"
-                onClick={toggleDiff}
-              >
-                Diff
-              </button>
-            </div>
-          )}
         </div>
         <div className="share-actions">
           <ActionButton label="Copy formatted" onClick={() => copyFormatted(doc.html, doc.markdown)} />
