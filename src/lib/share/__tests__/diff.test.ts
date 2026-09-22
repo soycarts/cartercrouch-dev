@@ -86,11 +86,11 @@ describe("source hunks", () => {
   });
 
   it("has nothing to say about two identical documents", () => {
-    expect(sourceHunks(BASE, BASE)).toEqual({ hunks: [], trailing: 0 });
+    expect(sourceHunks(BASE, BASE)).toEqual({ hunks: [], trailing: 0, tooLarge: false });
   });
 
   it("does not read a CRLF document as a whole-file rewrite", () => {
-    expect(sourceHunks(BASE.replace(/\n/g, "\r\n"), BASE)).toEqual({ hunks: [], trailing: 0 });
+    expect(sourceHunks(BASE.replace(/\n/g, "\r\n"), BASE)).toEqual({ hunks: [], trailing: 0, tooLarge: false });
   });
 
   it("keeps jsdiff's no-newline note as a line of its own", () => {
@@ -130,7 +130,7 @@ describe("the rendered diff", () => {
     const add = blocks.find((b) => b.kind === "add")!;
     expect(del.html).toContain('<del class="share-diff-del">one</del>');
     expect(add.html).toContain('<mark class="share-diff-ins">two</mark>');
-    expect(stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
   });
 
   it("marks the changed words of an edited paragraph", async () => {
@@ -163,7 +163,7 @@ describe("the rendered diff", () => {
       doc("- one\n- two"),
       doc("- one\n- two\n- three"),
     );
-    expect(stats).toEqual({ added: 1, removed: 0, changed: 0 });
+    expect(stats).toEqual({ added: 1, removed: 0, changed: 0, coarse: false });
     const add = blocks.find((b) => b.kind === "add")!;
     expect(add.html).toContain("three");
     expect(add.html).not.toContain("one");
@@ -172,7 +172,7 @@ describe("the rendered diff", () => {
   it("shows a changed table whole, with no word marks inside it", async () => {
     const table = (cell: string) => doc(`| a | b |\n|---|---|\n| 1 | ${cell} |`);
     const { blocks, stats } = await renderedDiff(table("2"), table("9"));
-    expect(stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
     const del = blocks.find((b) => b.kind === "del")!;
     const add = blocks.find((b) => b.kind === "add")!;
     expect(del.html).toContain("<table>");
@@ -186,7 +186,7 @@ describe("the rendered diff", () => {
   it("shows a changed code fence whole, with no word marks inside it", async () => {
     const fence = (value: string) => doc("```ts\nconst x = " + value + ";\n```");
     const { blocks, stats } = await renderedDiff(fence("1"), fence("2"));
-    expect(stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
     const add = blocks.find((b) => b.kind === "add")!;
     expect(add.html).toContain('<code class="language-ts">');
     expect(add.html).toContain("const x = 2;");
@@ -198,7 +198,7 @@ describe("the rendered diff", () => {
       doc("| a | b |\n|---|---|\n| 1 | 2 |"),
       doc("A paragraph instead."),
     );
-    expect(stats).toEqual({ added: 1, removed: 1, changed: 0 });
+    expect(stats).toEqual({ added: 1, removed: 1, changed: 0, coarse: false });
   });
 
   it("collapses a long unchanged run to its ends and a count", async () => {
@@ -231,7 +231,7 @@ describe("the rendered diff", () => {
   it("gives every block of a removed file the removed side", async () => {
     const { blocks, stats } = await renderedDiff("# Gone\n\nBody.\n", "");
     expect(blocks.every((b) => b.kind === "del")).toBe(true);
-    expect(stats).toEqual({ added: 0, removed: 2, changed: 0 });
+    expect(stats).toEqual({ added: 0, removed: 2, changed: 0, coarse: false });
   });
 });
 
@@ -463,7 +463,7 @@ describe("F1: line endings are not a change", () => {
   ] as const) {
     it(`reports no change for ${name} of identical text`, async () => {
       const rendered = await renderedDiff(archived, live);
-      expect(rendered.stats).toEqual({ added: 0, removed: 0, changed: 0 });
+      expect(rendered.stats).toEqual({ added: 0, removed: 0, changed: 0, coarse: false });
       expect(rendered.blocks.every((b) => b.kind === "equal" || b.kind === "collapsed")).toBe(true);
 
       const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
@@ -474,7 +474,7 @@ describe("F1: line endings are not a change", () => {
   it("still finds the real change in two CRLF drafts", async () => {
     const edited = CRLF.replace("Sign-off on the definitions", "Sign-off on the metrics");
     const diff = await documentDiff({ archived: CRLF, live: edited, liveLabel: "1.1" });
-    expect(diff.stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(diff.stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
     expect(diff.source.hunks).toHaveLength(1);
     expect(
       diff.rendered.find((b) => b.kind === "add")!.html,
@@ -529,7 +529,7 @@ describe("F6, F7, F8: the Markdown mode is a patch", () => {
   });
 
   it("claims no trailing lines when there are no hunks at all", () => {
-    expect(sourceHunks(BODY, BODY)).toEqual({ hunks: [], trailing: 0 });
+    expect(sourceHunks(BODY, BODY)).toEqual({ hunks: [], trailing: 0, tooLarge: false });
   });
 
   it("keeps the no-newline note attached to the side it belongs to", () => {
@@ -566,7 +566,7 @@ describe("F3: a rewrite is paired with the block it rewrote", () => {
 
   it("pairs by similarity, not by position", async () => {
     const { blocks, stats } = await renderedDiff(archived, live);
-    expect(stats).toEqual({ added: 0, removed: 1, changed: 1 });
+    expect(stats).toEqual({ added: 0, removed: 1, changed: 1, coarse: false });
 
     const del = blocks.filter((b) => b.kind === "del");
     const add = blocks.filter((b) => b.kind === "add");
@@ -602,7 +602,7 @@ describe("F3: a rewrite is paired with the block it rewrote", () => {
       "intro\n\nThe quarterly target is forty million.\n\noutro\n",
       "intro\n\nA sentence about something else entirely.\n\noutro\n",
     );
-    expect(stats).toEqual({ added: 1, removed: 1, changed: 0 });
+    expect(stats).toEqual({ added: 1, removed: 1, changed: 0, coarse: false });
   });
 
   it("still pairs a near-identical rewrite", async () => {
@@ -610,7 +610,7 @@ describe("F3: a rewrite is paired with the block it rewrote", () => {
       "intro\n\nThe quarterly revenue target is forty million dollars.\n\noutro\n",
       "intro\n\nThe quarterly revenue target is fourteen million dollars.\n\noutro\n",
     );
-    expect(stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
     expect(blocks.find((b) => b.kind === "add")!.html).toContain(
       '<mark class="share-diff-ins">fourteen</mark>',
     );
@@ -621,7 +621,7 @@ describe("F3: a rewrite is paired with the block it rewrote", () => {
       "para about alpha and the first topic\n\npara about beta and the second topic\n",
       "para about alpha and the first topic now\n\npara about beta and the second topic too\n",
     );
-    expect(stats).toEqual({ added: 0, removed: 0, changed: 2 });
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 2, coarse: false });
     const adds = blocks.filter((b) => b.kind === "add");
     expect(adds[0].html).toContain("alpha");
     expect(adds[1].html).toContain("beta");
@@ -676,5 +676,94 @@ describe("similarity", () => {
   it("is 0 when either side has no words", () => {
     expect(similarity("", "something")).toBe(0);
     expect(similarity("   ", "something")).toBe(0);
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   F2: the diff is bounded.
+
+   Both algorithms underneath cost O(N × D), and this runs inside a page
+   request on documents of up to 900 KB. The refuter's four shapes are the
+   ones that ran for tens of seconds: every block changed, every block
+   reordered, half a megabyte with no blank line in it, and every other line
+   different. The budgets are wall-clock, so these assert a ceiling with room
+   for a slow machine rather than a number — a regression here is tenfold,
+   not marginal.
+   --------------------------------------------------------------------------- */
+describe("F2: every shape of change is bounded", () => {
+  const KB = 1024;
+  /** ~500 KB of lines, the way the refuter built them. */
+  const fill = (make: (i: number) => string, limit = 500 * KB) => {
+    const out: string[] = [];
+    let bytes = 0;
+    for (let i = 0; bytes < limit; i += 1) {
+      const line = make(i);
+      out.push(line);
+      bytes += Buffer.byteLength(line) + 1;
+    }
+    return out.join("\n") + "\n";
+  };
+
+  const took = async (fn: () => Promise<unknown>) => {
+    const started = performance.now();
+    await fn();
+    return performance.now() - started;
+  };
+
+  it("finishes the alternating-line case well inside a request", async () => {
+    const archived = fill((i) => `line ${i} of the document body text here`);
+    const live = fill((i) =>
+      i % 2 ? `line ${i} of the document body text here` : `LINE ${i} of the body text HERE`,
+    );
+    expect(Buffer.byteLength(archived)).toBeGreaterThan(480 * KB);
+    const ms = await took(() => documentDiff({ archived, live, liveLabel: "1.1" }));
+    expect(ms).toBeLessThan(3000);
+  }, 20000);
+
+  it("finishes when every block changed", async () => {
+    const archived = fill((i) => `Paragraph ${i}: the quick brown fox jumps over the lazy dog.\n`);
+    const live = archived.replace(/lazy/g, "eager");
+    const ms = await took(() => documentDiff({ archived, live, liveLabel: "1.1" }));
+    expect(ms).toBeLessThan(6000);
+  }, 30000);
+
+  it("finishes when every block moved", async () => {
+    const archived = fill((i) => `Paragraph ${i}: the quick brown fox jumps over the lazy dog.\n`);
+    const live = archived.trimEnd().split("\n\n").reverse().join("\n\n") + "\n";
+    const ms = await took(() => documentDiff({ archived, live, liveLabel: "1.1" }));
+    expect(ms).toBeLessThan(6000);
+  }, 30000);
+
+  it("says so when the line diff runs out of budget", async () => {
+    // Half a megabyte with nothing in common: the line diff cannot finish,
+    // and the Markdown mode has to say that rather than show an empty box.
+    const archived = fill((i) => `alpha ${i} beta gamma delta epsilon zeta eta theta`);
+    const live = fill((i) => `${i} wholly different content on every single line here`);
+    const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
+    expect(diff.source.tooLarge).toBe(true);
+    expect(diff.source.hunks).toEqual([]);
+    // And the block side still answers, coarsely.
+    expect(diff.stats.coarse).toBe(true);
+    expect(hasRenderedChange(diff)).toBe(true);
+  }, 30000);
+
+  it("shows a block too large to format as exact text instead", async () => {
+    // One paragraph, no blank line, larger than the render limit.
+    const line = "the same line again and again and again";
+    const archived = fill(() => line, 80 * KB);
+    const live = archived + "one more line at the very end\n";
+    const { blocks, stats } = await renderedDiff(archived, live);
+    expect(stats.coarse).toBe(true);
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(add.html).toContain("share-diff-plain");
+    expect(add.html).toContain("one more line at the very end");
+  }, 30000);
+
+  it("keeps a document of ordinary size fine-grained", async () => {
+    const body = fill((i) => `Paragraph ${i} of a document of an ordinary size.\n`, 20 * KB);
+    const { stats, blocks } = await renderedDiff(body, body.replace("Paragraph 3 ", "Paragraph three "));
+    expect(stats.coarse).toBe(false);
+    expect(stats.changed).toBe(1);
+    expect(blocks.some((b) => b.html.includes("share-diff-ins"))).toBe(true);
   });
 });

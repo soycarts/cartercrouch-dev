@@ -62,6 +62,9 @@ export type SourceDiff = {
   hunks: Hunk[];
   /** Unchanged lines after the last hunk. */
   trailing: number;
+  /** Set when the line diff ran out of its budget and gave up. The mode
+   *  says so rather than showing an empty box. */
+  tooLarge: boolean;
 };
 
 export type DiffBlock =
@@ -77,6 +80,9 @@ export type DiffStats = {
   removed: number;
   /** Blocks present in both but rewritten — counted once, not as one of each. */
   changed: number;
+  /** Set when a limit coarsened the answer: whole runs instead of blocks,
+   *  or no word marks. The counts are still true; they are just blunter. */
+  coarse: boolean;
 };
 
 export type DocumentDiff = {
@@ -110,6 +116,50 @@ const MIN_PAIR_SIMILARITY = 0.5;
 /** How far from its own position a removal looks for the addition that
  *  replaced it. */
 const PAIR_WINDOW = 8;
+
+/* ---------------------------------------------------------------------------
+   Limits.
+
+   This runs inside a page request, on two documents of up to 900 KB, and
+   both of the diff algorithms underneath it cost O(N × D) — the product of
+   the size and the *difference*. On a pair of drafts that share almost
+   nothing, that is minutes, not milliseconds. Every limit below buys a
+   bounded answer at the price of a coarser one, and each says in the UI
+   what it gave up.
+   --------------------------------------------------------------------------- */
+
+/** Wall-clock budget for the line diff. jsdiff returns undefined when it
+ *  runs out, which is how the Markdown mode learns to say so. */
+const SOURCE_BUDGET_MS = 1500;
+
+/** The same for the block diff. Out of budget, every block reads as
+ *  replaced, which is the truthful coarse answer. */
+const BLOCK_BUDGET_MS = 600;
+
+/** Above this many changed blocks, each run is rendered whole — one parse
+ *  for the run instead of one per block. Six hundred blocks is already a
+ *  document nobody reads block by block. */
+const BLOCK_LIMIT = 600;
+
+/** Word marks are for reading a sentence that moved. Past this many pairs,
+ *  or this much text on either side of one, they cost more than they say. */
+const MARK_PAIR_LIMIT = 200;
+const MARK_TEXT_LIMIT = 256 * 1024;
+
+/**
+ * The most Markdown the diff will format as prose in one block or one run.
+ *
+ * A document with no blank line in it is one block, and that block can be
+ * the whole 900 KB. Formatting it costs a full parse per side, which is the
+ * reader's own cost — except that the reader pays it once for the document
+ * and the diff would pay it twice for a comparison nobody asked to be
+ * beautiful. Over this, the text is shown as text: mono, escaped, exact.
+ *
+ * It is stricter than MARK_TEXT_LIMIT on purpose. Marks need the parsed
+ * tree, so anything past this limit has no marks either way; the looser
+ * limit is the one that would matter if this were ever raised.
+ */
+const RENDER_LIMIT = 64 * 1024;
 
 /** Collapse runs that touch or overlap, so one word is one mark. */
 function mergeRuns(runs: Run[]): Run[] {
@@ -207,8 +257,9 @@ export function sourceHunks(oldMarkdown: string, newMarkdown: string): SourceDif
     normaliseLineEndings(newMarkdown),
     "",
     "",
-    { context: CONTEXT },
+    { context: CONTEXT, timeout: SOURCE_BUDGET_MS },
   );
+  if (!patch) return { hunks: [], trailing: 0, tooLarge: true };
 
   let previousEnd = 1;
   const hunks = patch.hunks.map((hunk) => {
@@ -231,7 +282,7 @@ export function sourceHunks(oldMarkdown: string, newMarkdown: string): SourceDif
   // final empty line that is nobody's business, so it does not count.
   const total = archived.replace(/\n$/, "").split("\n").length;
   const trailing = hunks.length === 0 ? 0 : Math.max(0, total - (previousEnd - 1));
-  return { hunks, trailing };
+  return { hunks, trailing, tooLarge: false };
 }
 
 /* ---------------------------------------------------------------------------
@@ -355,21 +406,33 @@ function dedent(text: string): string {
 type ParsedBlock = {
   block: SourceBlock;
   nodes: RootContent[];
-  /** Every text node's value, concatenated: what the marks index into. */
+  /** Every text node's value, concatenated: what the marks index into.
+   *  For a block past RENDER_LIMIT this is the Markdown source instead,
+   *  because there is no tree. */
   text: string;
+  /** True when the block was shown as exact text rather than formatted. */
+  plain: boolean;
 };
 
 async function parseBlock(block: SourceBlock): Promise<ParsedBlock> {
-  const tree = await toSanitizedTree(dedent(block.text));
+  const source = dedent(block.text);
+  // Too big to format is also too big to score and too big to mark: there
+  // is no tree to measure offsets in. `text` stays the source so that a
+  // pair of monsters can still be paired on position.
+  if (source.length > RENDER_LIMIT) {
+    return { block, nodes: [], text: source, plain: true };
+  }
+  const tree = await toSanitizedTree(source);
   const nodes = tree.children as RootContent[];
   stripIds(nodes);
-  return { block, nodes, text: plainText(nodes) };
+  return { block, nodes, text: plainText(nodes), plain: false };
 }
 
 /** One parsed block as sanitized HTML, with the changed words marked if
  *  asked. Each parsed block is rendered exactly once, which is what makes it
  *  safe for applyMarks to decorate its nodes in place. */
 function blockHtml(parsed: ParsedBlock, marks?: Run[], tagName?: "mark" | "del"): string {
+  if (parsed.plain) return stringifyPlainBlock(parsed.block.text);
   const decorated =
     marks && marks.length > 0 && tagName
       ? applyMarks(parsed.nodes, marks, tagName)
@@ -381,14 +444,30 @@ function blockHtml(parsed: ParsedBlock, marks?: Run[], tagName?: "mark" | "del")
 }
 
 /**
- * A stretch of unchanged blocks, rendered from the source that spans them.
+ * Markdown as prose, or — past RENDER_LIMIT — as exact escaped text.
+ *
+ * `plain` is what the caller reports as a coarsened answer. Both paths go
+ * through the same sanitizer; the difference is only how much work the
+ * renderer is asked to do.
+ */
+async function boundedHtml(text: string): Promise<{ html: string; plain: boolean }> {
+  if (text.length > RENDER_LIMIT) return { html: stringifyPlainBlock(text), plain: true };
+  return { html: await renderHtml(text), plain: false };
+}
+
+/**
+ * A stretch of blocks, rendered from the source that spans them.
  *
  * Rendering the slice rather than each block keeps the blank lines between
  * them — a list stays one list — and costs one parse instead of one per
  * block, which is what makes an unchanged 50 KB document cheap.
  */
-async function sliceHtml(source: string[], from: SourceBlock, to: SourceBlock): Promise<string> {
-  return renderHtml(source.slice(from.startLine - 1, to.endLine).join("\n"));
+async function sliceHtml(
+  source: string[],
+  from: SourceBlock,
+  to: SourceBlock,
+): Promise<{ html: string; plain: boolean }> {
+  return boundedHtml(source.slice(from.startLine - 1, to.endLine).join("\n"));
 }
 
 /**
@@ -434,6 +513,12 @@ function pairBySimilarity(dels: ParsedBlock[], adds: ParsedBlock[]): Map<number,
     const to = Math.min(adds.length, d + PAIR_WINDOW + 1);
     for (let a = from; a < to; a += 1) {
       if (dels[d].block.kind !== adds[a].block.kind) continue;
+      // Scoring is a word diff of its own; a pair of enormous blocks is
+      // paired on position rather than measured.
+      if (dels[d].plain || adds[a].plain) {
+        if (d === a) candidates.push({ score: MIN_PAIR_SIMILARITY, del: d, add: a });
+        continue;
+      }
       const score = similarity(dels[d].text, adds[a].text);
       if (score >= MIN_PAIR_SIMILARITY) candidates.push({ score, del: d, add: a });
     }
@@ -466,7 +551,17 @@ function blockOps(oldBlocks: SourceBlock[], newBlocks: SourceBlock[]): Op[] {
   // no kind contains one, and the normalised text never starts with one.
   const key = (block: SourceBlock) =>
     `${block.kind} ${block.text.replace(/\s+/g, " ").trim()}`;
-  const parts = diffArrays(oldBlocks.map(key), newBlocks.map(key));
+  const parts = diffArrays(oldBlocks.map(key), newBlocks.map(key), {
+    timeout: BLOCK_BUDGET_MS,
+  });
+  // Out of budget: the honest coarse answer is that all of this went and
+  // all of that arrived.
+  if (!parts) {
+    return [
+      ...(oldBlocks.length > 0 ? [{ kind: "del", blocks: oldBlocks } as Op] : []),
+      ...(newBlocks.length > 0 ? [{ kind: "add", blocks: newBlocks } as Op] : []),
+    ];
+  }
 
   const ops: Op[] = [];
   let oldAt = 0;
@@ -509,12 +604,32 @@ export async function renderedDiff(
   const archived = normaliseLineEndings(oldMarkdown);
   const current = normaliseLineEndings(newMarkdown);
   const oldSource = closeListsAtLazyLines(archived).split("\n");
+  const newSource = closeListsAtLazyLines(current).split("\n");
   const oldBlocks = splitBlocks(archived);
   const newBlocks = splitBlocks(current);
   const ops = blockOps(oldBlocks, newBlocks);
 
+  // How much of this document moved decides how finely it is worth showing.
+  // Past the limit, a run is rendered whole — one parse for the run instead
+  // of one for each of its blocks — and nothing is paired or marked. The
+  // counts stay true; a reader looking at four hundred changed blocks is
+  // reading a rewrite, not tracking an edit.
+  const changed = ops.reduce((n, op) => (op.kind === "equal" ? n : n + op.blocks.length), 0);
+  const coarse = changed > BLOCK_LIMIT;
+
   const out: DiffBlock[] = [];
-  const stats: DiffStats = { added: 0, removed: 0, changed: 0 };
+  const stats: DiffStats = { added: 0, removed: 0, changed: 0, coarse };
+
+  /** One run of blocks, rendered from the source that spans it. */
+  const runHtml = (source: string[], blocks: SourceBlock[]) =>
+    sliceHtml(source, blocks[0], blocks[blocks.length - 1]);
+
+  /** Every render reports whether it had to fall back to exact text. */
+  const render = async (promise: Promise<{ html: string; plain: boolean }>) => {
+    const { html, plain } = await promise;
+    if (plain) stats.coarse = true;
+    return html;
+  };
 
   for (let i = 0; i < ops.length; i += 1) {
     const op = ops[i];
@@ -523,19 +638,27 @@ export async function renderedDiff(
       const run = op.blocks;
       if (run.length === 0) continue;
       if (run.length <= COLLAPSE_OVER) {
-        out.push({ kind: "equal", html: await sliceHtml(oldSource, run[0], run[run.length - 1]) });
+        out.push({ kind: "equal", html: await render(runHtml(oldSource, run)) });
         continue;
       }
-      out.push({ kind: "equal", html: await sliceHtml(oldSource, run[0], run[0]) });
+      out.push({ kind: "equal", html: await render(sliceHtml(oldSource, run[0], run[0])) });
       out.push({
         kind: "collapsed",
         count: run.length - 2,
-        html: await sliceHtml(oldSource, run[1], run[run.length - 2]),
+        html: await render(sliceHtml(oldSource, run[1], run[run.length - 2])),
       });
       out.push({
         kind: "equal",
-        html: await sliceHtml(oldSource, run[run.length - 1], run[run.length - 1]),
+        html: await render(sliceHtml(oldSource, run[run.length - 1], run[run.length - 1])),
       });
+      continue;
+    }
+
+    if (coarse) {
+      const source = op.kind === "del" ? oldSource : newSource;
+      out.push({ kind: op.kind, html: await render(runHtml(source, op.blocks)) });
+      if (op.kind === "add") stats.added += op.blocks.length;
+      else stats.removed += op.blocks.length;
       continue;
     }
 
@@ -549,6 +672,11 @@ export async function renderedDiff(
       const dels = await Promise.all(op.blocks.map(parseBlock));
       const adds = await Promise.all(addOp.blocks.map(parseBlock));
       const pairs = pairBySimilarity(dels, adds);
+      // Word marks are a per-pair cost on text of unbounded length. Past
+      // either limit the pair still shows, whole on each side, the way a
+      // changed table always has.
+      const marking = pairs.size <= MARK_PAIR_LIMIT;
+      if (!marking) stats.coarse = true;
 
       for (let d = 0; d < dels.length; d += 1) {
         const a = pairs.get(d);
@@ -557,9 +685,18 @@ export async function renderedDiff(
           stats.removed += 1;
           continue;
         }
-        const marks = marksAllowed(dels[d].block)
-          ? wordMarks(dels[d].text, adds[a].text)
-          : null;
+        const affordable =
+          marking &&
+          !dels[d].plain &&
+          !adds[a].plain &&
+          dels[d].text.length <= MARK_TEXT_LIMIT &&
+          adds[a].text.length <= MARK_TEXT_LIMIT;
+        if (!affordable) stats.coarse = true;
+        const marks =
+          affordable && marksAllowed(dels[d].block)
+            ? wordMarks(dels[d].text, adds[a].text)
+            : null;
+        if (dels[d].plain || adds[a].plain) stats.coarse = true;
         out.push({ kind: "del", html: blockHtml(dels[d], marks?.del, "del") });
         out.push({ kind: "add", html: blockHtml(adds[a], marks?.add, "mark") });
         stats.changed += 1;

@@ -144,21 +144,28 @@ function hasVersions(view: ShareView): boolean {
 }
 
 /**
- * "Diff vs live" for what this page shows, or undefined on the current
- * draft — there is nothing to compare it against.
+ * "Diff vs live" for what this page shows — but only when the reader asked
+ * for it, and never on the current draft, which has nothing to compare
+ * against.
  *
- * Both sides are already in memory: an archived page reads the snapshot and
- * the current document to answer the draft menu at all (see `loadShareView`),
- * so the diff costs no fetch, only the comparison. It is computed here rather
- * than in the browser so the client bundle carries no diff library and no
- * second copy of the document.
+ * It is gated on `?diff=1` because it is not free. Both sides are already
+ * in memory, so it costs no fetch, but the comparison itself is two
+ * O(N × D) diffs over documents of up to 900 KB, and it was being computed
+ * and serialised into the HTML of every archived page view — most of which
+ * never show it. The toggle navigates to `?diff=1` when the page it is on
+ * arrived without one; from then on it is a local switch, because both
+ * representations are in the props.
  *
  * `file` is the context file being read, if any. A file the current draft no
- * longer carries diffs against nothing, which reads as a full removal — which
- * is what happened to it.
+ * longer carries diffs against nothing, which reads as a full removal —
+ * which is what happened to it.
  */
-async function viewDiff(view: ShareView, file: Attachment | null): Promise<DocumentDiff | undefined> {
-  if (!view.slug) return undefined;
+async function viewDiff(
+  view: ShareView,
+  file: Attachment | null,
+  search: { diff?: string },
+): Promise<DocumentDiff | undefined> {
+  if (!view.slug || search.diff !== "1") return undefined;
   const live = file
     ? (findAttachment(view.current, file.name)?.markdown ?? null)
     : view.current.markdown;
@@ -218,7 +225,7 @@ export async function sharePageProps(
     renderDocument(doc.markdown),
     renderHtml(doc.markdown),
     loadViewerAttachments(doc, slug),
-    viewDiff(view, null),
+    viewDiff(view, null, search),
   ]);
   const versions = hasVersions(view) ? versionOptions(view, null) : [];
 
@@ -264,7 +271,7 @@ export async function attachmentPageProps(
     renderDocument(file.markdown),
     renderHtml(file.markdown),
     loadViewerAttachments(doc, slug),
-    viewDiff(view, file),
+    viewDiff(view, file, search),
   ]);
   const versions = hasVersions(view) ? versionOptions(view, file.name) : [];
 

@@ -7,6 +7,11 @@ import { ReaderPage } from "@/components/share/ReaderPage";
 // The same page inside an archived draft: /:id/:version/files/:name/view.
 export const dynamic = "force-dynamic";
 
+// ?diff=1 compares this draft with the live one: two line diffs over two
+// documents of up to 900 KB, each with its own budget inside. The default
+// serverless ceiling is tighter than the sum of those budgets.
+export const maxDuration = 30;
+
 type Params = Promise<{ id: string; version: string; name: string }>;
 type Search = Promise<{ view?: string; diff?: string }>;
 

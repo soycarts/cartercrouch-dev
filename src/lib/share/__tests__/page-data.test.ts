@@ -211,7 +211,7 @@ describe("the diff an archived page carries", () => {
 
     store.reset();
     const archived = await loadShareView(doc.id, "draft1_0", store);
-    const props = await sharePageProps(archived!, {});
+    const props = await sharePageProps(archived!, { diff: "1" });
     // One current document, one snapshot — the same two reads the draft menu
     // needs. The diff adds no fetch of its own.
     expect(store.gets).toBe(1);
@@ -219,7 +219,7 @@ describe("the diff an archived page carries", () => {
 
     const diff = props!.kind === "reader" ? props!.reader.doc.diff : undefined;
     expect(diff!.liveLabel).toBe("1.1");
-    expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
     expect(diff!.note).toBeNull();
     expect(
       diff!.rendered.some((b) => b.kind === "del" && b.html.includes("share-diff-del")),
@@ -247,7 +247,7 @@ describe("the diff an archived page carries", () => {
     await updateDocument(store, doc.id, { markdown: "# Doc\n", version: "1.1", attachments: [] });
 
     const archived = await loadShareView(doc.id, "draft1_0", store);
-    const props = await attachmentPageProps(archived!, "dropped.md", {});
+    const props = await attachmentPageProps(archived!, "dropped.md", { diff: "1" });
     expect(props!.doc.diff!.note).toBe("This file is not in the current draft.");
     expect(props!.doc.diff!.rendered.every((b) => b.kind === "del")).toBe(true);
   });
@@ -257,10 +257,10 @@ describe("the diff an archived page carries", () => {
     const doc = await publishDocument(store, { markdown: "# Doc\n\nSame.\n", version: "1.0" });
     await updateDocument(store, doc.id, { markdown: "# Doc\n\nSame.\n", version: "1.1" });
     const archived = await loadShareView(doc.id, "draft1_0", store);
-    const props = await sharePageProps(archived!, {});
+    const props = await sharePageProps(archived!, { diff: "1" });
     const diff = props!.kind === "reader" ? props!.reader.doc.diff! : null;
-    expect(diff!.source).toEqual({ hunks: [], trailing: 0 });
-    expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 0 });
+    expect(diff!.source).toEqual({ hunks: [], trailing: 0, tooLarge: false });
+    expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 0, coarse: false });
   });
 
   it("is not computed for the print view, which is draft-only", async () => {

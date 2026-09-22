@@ -411,7 +411,10 @@ describe("the diff query parameter", () => {
     expect(reader.doc.diff!.stats.changed).toBe(1);
   });
 
-  it("computes the diff even when the page opens on the draft", async () => {
+  it("does not compute it until it is asked for", async () => {
+    // The comparison is the expensive part of the page, and most views of
+    // an archived draft never open it. Without ?diff=1 the payload is not
+    // built and not serialised into the HTML; the control navigates.
     const { default: Page } = await import("@/app/share/[id]/[version]/page");
     const reader = readerOf(
       await Page({
@@ -420,7 +423,27 @@ describe("the diff query parameter", () => {
       }),
     );
     expect(reader.initialDiff).toBe(false);
-    expect(reader.doc.diff).toBeDefined();
+    expect(reader.doc.diff).toBeUndefined();
+  });
+
+  it("does not compute it for a context file either", async () => {
+    const { default: Page } = await import(
+      "@/app/share/[id]/[version]/files/[name]/view/page"
+    );
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(reader.doc.diff).toBeUndefined();
+  });
+
+  it("sets a duration ceiling on the routes that can compute one", async () => {
+    const version = await import("@/app/share/[id]/[version]/page");
+    const file = await import("@/app/share/[id]/[version]/files/[name]/view/page");
+    expect(version.maxDuration).toBe(30);
+    expect(file.maxDuration).toBe(30);
   });
 
   it("ignores it on the current draft, which has nothing to compare with", async () => {

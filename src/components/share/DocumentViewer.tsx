@@ -203,25 +203,52 @@ export function DocumentViewer({
   // The diff is offered on an archived page and nowhere else: the current
   // draft has nothing to be compared with, and the attachment popup shows a
   // file of the draft you are already reading.
-  const canDiff = !compact && superseded !== null && doc.diff !== undefined;
-  const [diff, setDiff] = useState(canDiff && initialDiff);
+  const canDiff = !compact && superseded !== null;
+  // The comparison is computed on request, so the control has two jobs. With
+  // the payload in the props it is a switch. Without it — this page was
+  // opened without ?diff=1 — it is a link, and pressing it fetches the page
+  // that has it.
+  const hasDiff = doc.diff !== undefined;
+  const [diff, setDiff] = useState(hasDiff && initialDiff);
 
-  // Mirror the diff into the URL so a diff is a link someone can send,
+  /** This page's URL with both axes of the diff written into it. */
+  const diffUrl = (on: boolean, mode: View) => {
+    const url = new URL(window.location.href);
+    if (on) url.searchParams.set("diff", "1");
+    else url.searchParams.delete("diff");
+    // The mode travels with it, so a diff someone sends opens in the mode
+    // they were reading it in.
+    if (mode === "markdown") url.searchParams.set("view", "markdown");
+    else url.searchParams.delete("view");
+    return `${url.pathname}${url.search}${url.hash}`;
+  };
+
+  // Mirror the state into the URL so a diff is a link someone can send,
   // without a navigation: the page's own props already hold both drafts.
   // Only the viewer that owns the control writes the URL — a popup open over
   // an archived page must not strip its ?diff=1.
   const mounted = useRef(false);
   useEffect(() => {
-    if (!canDiff) return;
+    if (!canDiff || !hasDiff) return;
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
-    const url = new URL(window.location.href);
-    if (diff) url.searchParams.set("diff", "1");
-    else url.searchParams.delete("diff");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }, [canDiff, diff]);
+    window.history.replaceState(null, "", diffUrl(diff, view));
+    // diffUrl is derived from these; it is deliberately not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canDiff, hasDiff, diff, view]);
+
+  const toggleDiff = () => {
+    if (hasDiff) {
+      setDiff((was) => !was);
+      return;
+    }
+    // Nothing to show yet: ask the server for it. A full navigation is the
+    // honest way to say "this needs work done", and it lands on a URL that
+    // is already the shareable one.
+    window.location.assign(diffUrl(true, view));
+  };
 
   const tab = (target: View, label: string) => (
     <button
@@ -252,13 +279,21 @@ export function DocumentViewer({
   const empty = doc.diff
     ? !(view === "markdown" ? hasSourceChange(doc.diff) : hasRenderedChange(doc.diff))
     : true;
+  // A limit the comparison ran into, in the mode it affects.
+  const limit =
+    doc.diff && view === "markdown" && doc.diff.source.tooLarge
+      ? "This change is too large to show line by line."
+      : doc.diff && view === "reader" && doc.diff.stats.coarse
+        ? "A change this large is shown in whole blocks rather than word by word."
+        : null;
 
   const body =
     diff && doc.diff ? (
       <div className="share-diff">
         <DiffSummary diff={doc.diff} view={view} versionLabel={versionLabel} />
         {doc.diff.note && <p className="share-diff-note">{doc.diff.note}</p>}
-        {empty ? (
+        {limit && <p className="share-diff-note">{limit}</p>}
+        {empty && !doc.diff.source.tooLarge ? (
           <p className="share-diff-note">No differences from the current draft.</p>
         ) : view === "markdown" ? (
           <DiffSource source={doc.diff.source} />
@@ -302,7 +337,7 @@ export function DocumentViewer({
                 aria-pressed={diff}
                 aria-label="Diff vs live"
                 title="Diff vs live"
-                onClick={() => setDiff((was) => !was)}
+                onClick={toggleDiff}
               >
                 Diff
               </button>
