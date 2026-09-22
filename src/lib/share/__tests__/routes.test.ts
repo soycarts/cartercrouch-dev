@@ -247,10 +247,22 @@ describe("draft routes", () => {
     expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     expect(await res.text()).toBe("# Doc\n\ndraft one\n");
 
+    // An archived download says which draft it is, so it cannot be confused
+    // with the current one in a downloads folder.
     const download = await GET(new Request("http://x/?download=1"), {
       params: Promise.resolve({ id, version: "draft1_0" }),
     });
-    expect(download.headers.get("content-disposition")).toBe('attachment; filename="doc.md"');
+    expect(download.headers.get("content-disposition")).toBe(
+      'attachment; filename="doc-draft1_0.md"',
+    );
+
+    const { GET: file } = await import("@/app/share/[id]/[version]/files/[name]/route");
+    const fileDownload = await file(new Request("http://x/?download=1"), {
+      params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+    });
+    expect(fileDownload.headers.get("content-disposition")).toBe(
+      'attachment; filename="spec-draft1_0.md"',
+    );
   });
 
   it("serves that draft's own copy of a context file", async () => {

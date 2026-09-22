@@ -1,5 +1,10 @@
 import { pdfNotFound, pdfResponse } from "./pdf-response";
-import { documentFilename, findAttachment, type SharedDocument } from "./store";
+import {
+  documentFilename,
+  findAttachment,
+  versionedFilename,
+  type SharedDocument,
+} from "./store";
 
 /**
  * The .md and .pdf surfaces, once. The current document and every archived
@@ -43,9 +48,15 @@ function markdownResponse(
 export function documentMarkdownResponse(
   request: Request,
   doc: SharedDocument | null,
+  version: string | null = null,
 ): Response {
   if (!doc) return shareNotFound();
-  return markdownResponse(request, doc.markdown, doc.updatedAt, documentFilename(doc, "md"));
+  return markdownResponse(
+    request,
+    doc.markdown,
+    doc.updatedAt,
+    documentFilename(doc, "md", version),
+  );
 }
 
 /** GET /:id/files/:name and its per-draft twin — an attachment's Markdown. */
@@ -53,10 +64,16 @@ export function attachmentMarkdownResponse(
   request: Request,
   doc: SharedDocument | null,
   name: string,
+  version: string | null = null,
 ): Response {
   const file = doc ? findAttachment(doc, name) : null;
   if (!doc || !file) return shareNotFound();
-  return markdownResponse(request, file.markdown, doc.updatedAt, file.name);
+  return markdownResponse(
+    request,
+    file.markdown,
+    doc.updatedAt,
+    versionedFilename(file.name, version),
+  );
 }
 
 /**
@@ -74,7 +91,7 @@ export function documentPdfResponse(
   version: string | null,
 ): Promise<Response> | Response {
   if (!doc || !doc.settings.allowPdf) return pdfNotFound();
-  return pdfResponse(request, printPath(doc.id, version), documentFilename(doc, "pdf"));
+  return pdfResponse(request, printPath(doc.id, version), documentFilename(doc, "pdf", version));
 }
 
 export function attachmentPdfResponse(
@@ -88,6 +105,6 @@ export function attachmentPdfResponse(
   return pdfResponse(
     request,
     printPath(doc.id, version, file.name),
-    file.name.replace(/\.md$/i, ".pdf"),
+    versionedFilename(file.name.replace(/\.md$/i, ".pdf"), version),
   );
 }

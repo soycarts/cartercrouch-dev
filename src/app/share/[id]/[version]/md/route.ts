@@ -9,5 +9,5 @@ export async function GET(
   { params }: { params: Promise<{ id: string; version: string }> },
 ) {
   const { id, version } = await params;
-  return documentMarkdownResponse(request, await getPublicVersion(getStore(), id, version));
+  return documentMarkdownResponse(request, await getPublicVersion(getStore(), id, version), version);
 }

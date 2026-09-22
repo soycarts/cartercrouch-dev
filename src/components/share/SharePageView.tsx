@@ -16,6 +16,8 @@ export function SharePageView(props: SharePageProps) {
           title={props.title}
           createdAt={props.createdAt}
           updatedAt={props.updatedAt}
+          versionLabel={props.versionLabel}
+          superseded={props.superseded}
         />
         <div className="pt-8">
           <Prose sections={props.sections} />

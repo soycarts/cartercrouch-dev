@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import type { VersionOption } from "@/components/share/VersionMenu";
 import type { ReaderPageProps } from "@/components/share/ReaderPage";
@@ -7,7 +8,8 @@ import {
   documentFilename,
   findAttachment,
   getPublicDocument,
-  getPublicVersion,
+  isVersionSlug,
+  publicShape,
   type SharedDocument,
   type ShareStore,
 } from "./store";
@@ -40,25 +42,37 @@ export type ShareView = {
 };
 
 /**
+ * Every reader page is rendered twice per request — once for
+ * generateMetadata, once for the page itself — and an archived page reads
+ * two blobs, either of which can be hundreds of kilobytes. React's `cache`
+ * makes both passes share one read of each. It memoises per request, so
+ * nothing leaks between readers; a test that passes its own store opts out.
+ */
+const cachedCurrent = cache((id: string) => getPublicDocument(getStore(), id));
+const cachedSnapshot = cache((id: string, slug: string) => getStore().getVersion(id, slug));
+
+/**
  * Resolve an id, and optionally a draft slug, to something renderable.
  * Unknown, malformed, revoked and never-archived all come back null, so
- * every miss is the same uniform 404.
+ * every miss is the same uniform 404. A slug the current document does not
+ * list is never served, however real the blob behind it looks: see
+ * publicVersionOf.
  */
 export async function loadShareView(
   id: string,
   slug?: string,
-  store: ShareStore = getStore(),
+  store?: ShareStore,
 ): Promise<ShareView | null> {
-  if (slug === undefined) {
-    const current = await getPublicDocument(store, id);
-    return current ? { current, doc: current, slug: null } : null;
-  }
-  const [current, snapshot] = await Promise.all([
-    getPublicDocument(store, id),
-    getPublicVersion(store, id, slug),
-  ]);
-  if (!current || !snapshot) return null;
-  return { current, doc: snapshot, slug };
+  const current = store ? await getPublicDocument(store, id) : await cachedCurrent(id);
+  if (!current) return null;
+  if (slug === undefined) return { current, doc: current, slug: null };
+  if (!isVersionSlug(slug)) return null;
+  if (!(current.versions ?? []).some((v) => v.slug === slug)) return null;
+  const snapshot = store
+    ? await store.getVersion(id, slug)
+    : await cachedSnapshot(id, slug);
+  if (!snapshot) return null;
+  return { current, doc: { ...publicShape(snapshot), versions: [] }, slug };
 }
 
 /** Where a given draft shows `file`, falling back to its main document. */
@@ -71,15 +85,16 @@ function hrefWithin(doc: SharedDocument, slug: string | null, file: string | nul
  * The menu's entries, newest first: the live draft, then each archived one.
  * Reading a context file, an entry points at that same file in that draft
  * when it had one — the reader stays on the file they were looking at —
- * and at the draft's main document when it did not. That is the only case
- * that needs the snapshots themselves, so it is the only case that loads
- * them.
+ * and at the draft's main document when it did not.
+ *
+ * Which files a draft had is answered from the names recorded on the entry,
+ * never by fetching the draft. Fetching them cost a full read of every
+ * snapshot on every attachment page view: a document with twelve drafts and
+ * a 165 KB body was pulling 2.7 MB out of Redis to decide twelve hrefs.
+ * Entries written before those names were recorded say nothing, so their
+ * item points at that draft's document — the safe direction.
  */
-async function versionOptions(
-  view: ShareView,
-  file: string | null,
-  store: ShareStore,
-): Promise<VersionOption[]> {
+function versionOptions(view: ShareView, file: string | null): VersionOption[] {
   const { current, slug } = view;
   const archived = [...(current.versions ?? [])].reverse();
   const label = current.version;
@@ -93,17 +108,16 @@ async function versionOptions(
         },
       ]
     : [];
-  const snapshots = file
-    ? await Promise.all(archived.map((v) => store.getVersion(current.id, v.slug)))
-    : archived.map(() => null);
+  const hasFile = (v: (typeof archived)[number]) =>
+    file !== null &&
+    (v.attachments ?? []).some((name) => name.toLowerCase() === file.toLowerCase());
   return [
     ...head,
-    ...archived.map((v, i) => ({
+    ...archived.map((v) => ({
       label: v.version,
-      href:
-        file && snapshots[i] && findAttachment(snapshots[i]!, file)
-          ? attachmentPageUrl(current.id, file, v.slug)
-          : readerUrl(current.id, v.slug),
+      href: hasFile(v)
+        ? attachmentPageUrl(current.id, file!, v.slug)
+        : readerUrl(current.id, v.slug),
       current: false,
       active: slug === v.slug,
     })),
@@ -118,9 +132,13 @@ function superseded(view: ShareView, file: string | null) {
   return { at: entry.supersededAt, currentHref: hrefWithin(view.current, null, file) };
 }
 
-/** True when the reader has any draft to choose between. */
+/**
+ * True when there is a *choice* to offer. A labelled document with nothing
+ * archived yet has exactly one draft, and a menu with one entry is chrome
+ * that does nothing.
+ */
 function hasVersions(view: ShareView): boolean {
-  return Boolean(view.current.version) || (view.current.versions ?? []).length > 0;
+  return (view.current.versions ?? []).length > 0;
 }
 
 export type PrintProps = {
@@ -129,6 +147,10 @@ export type PrintProps = {
   createdAt: string;
   updatedAt: string;
   sections: RenderedSection[];
+  /** The draft this page is, and — when archived — that it is not current.
+   *  A printed page travels on its own: nothing else on it says so. */
+  versionLabel: string | null;
+  superseded: { at: string; currentHref: string } | null;
 };
 
 export type SharePageProps = PrintProps | { kind: "reader"; reader: ReaderPageProps };
@@ -141,7 +163,6 @@ export type SharePageProps = PrintProps | { kind: "reader"; reader: ReaderPagePr
 export async function sharePageProps(
   view: ShareView,
   search: { view?: string; print?: string; file?: string },
-  store: ShareStore = getStore(),
 ): Promise<SharePageProps | null> {
   const { doc, slug } = view;
 
@@ -155,15 +176,17 @@ export async function sharePageProps(
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
       sections: rendered.sections,
+      versionLabel: doc.version,
+      superseded: superseded(view, target?.name ?? null),
     };
   }
 
-  const [rendered, html, files, versions] = await Promise.all([
+  const [rendered, html, files] = await Promise.all([
     renderDocument(doc.markdown),
     renderHtml(doc.markdown),
     loadViewerAttachments(doc, slug),
-    hasVersions(view) ? versionOptions(view, null, store) : Promise.resolve([]),
   ]);
+  const versions = hasVersions(view) ? versionOptions(view, null) : [];
 
   return {
     kind: "reader",
@@ -196,18 +219,17 @@ export async function attachmentPageProps(
   view: ShareView,
   name: string,
   search: { view?: string },
-  store: ShareStore = getStore(),
 ): Promise<ReaderPageProps | null> {
   const { doc, slug } = view;
   const file = findAttachment(doc, name);
   if (!file) return null;
 
-  const [rendered, html, files, versions] = await Promise.all([
+  const [rendered, html, files] = await Promise.all([
     renderDocument(file.markdown),
     renderHtml(file.markdown),
     loadViewerAttachments(doc, slug),
-    hasVersions(view) ? versionOptions(view, file.name, store) : Promise.resolve([]),
   ]);
+  const versions = hasVersions(view) ? versionOptions(view, file.name) : [];
 
   return {
     title: rendered.title ?? file.name,

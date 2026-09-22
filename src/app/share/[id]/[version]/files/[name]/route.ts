@@ -11,5 +11,6 @@ export async function GET(
     request,
     await getPublicVersion(getStore(), id, version),
     name,
+    version,
   );
 }
