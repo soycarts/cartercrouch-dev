@@ -1050,17 +1050,6 @@
     border: 1px solid var(--rule-strong);
   }
 
-  /* The diff control: a toggle, not a mode, so it is boxed like the draft
-     menu and sits to the right of the view toggle rather than inside it. */
-  .share-diffbox {
-    display: inline-flex;
-    border: 1px solid var(--rule-strong);
-  }
-
-  .share-diff-toggle {
-    white-space: nowrap;
-  }
-
   .share-versions__button {
     display: inline-flex;
     align-items: center;
@@ -1143,6 +1132,15 @@
 
   .share-superseded__link:hover {
     border-color: var(--accent);
+  }
+
+  /* The diff control lives on this line, not on the bar: it belongs to the
+     fact that there is a newer draft, and the bar has no room for it. */
+  .share-superseded__diff.is-active {
+    color: var(--paper);
+    background: var(--accent);
+    border-color: var(--accent);
+    padding: 0 0.35rem 1px;
   }
 
   /* Reader controls: theme switch and text size, travelling together. They
