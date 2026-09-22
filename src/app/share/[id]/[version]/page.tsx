@@ -3,27 +3,28 @@ import { notFound } from "next/navigation";
 import { documentMetadata, loadShareView, sharePageProps } from "@/lib/share/page-data";
 import { SharePageView } from "@/components/share/SharePageView";
 
-// Always render from the store; documents can change or be revoked at any time.
+// An archived draft, read exactly as the current one is. Next matches its
+// static segments first, so /files, /md and /pdf never reach this route —
+// and the "draft" prefix on the slug means they could not match it anyway.
 export const dynamic = "force-dynamic";
 
-type Params = Promise<{ id: string }>;
+type Params = Promise<{ id: string; version: string }>;
 type Search = Promise<{ view?: string; print?: string; file?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { id } = await params;
-  return documentMetadata(await loadShareView(id));
+  const { id, version } = await params;
+  return documentMetadata(await loadShareView(id, version));
 }
 
-// The current draft. /:id/:version is the same page against a snapshot.
-export default async function SharePage({
+export default async function SharedVersionPage({
   params,
   searchParams,
 }: {
   params: Params;
   searchParams: Search;
 }) {
-  const [{ id }, search] = await Promise.all([params, searchParams]);
-  const view = await loadShareView(id);
+  const [{ id, version }, search] = await Promise.all([params, searchParams]);
+  const view = await loadShareView(id, version);
   if (!view) notFound();
   const props = await sharePageProps(view, search);
   if (!props) notFound();

@@ -1,5 +1,5 @@
-import { getStore, getPublicDocument, documentFilename } from "@/lib/share";
-import { pdfNotFound, pdfResponse } from "@/lib/share/pdf-response";
+import { getStore, getPublicDocument } from "@/lib/share";
+import { documentPdfResponse } from "@/lib/share/responses";
 
 // GET /:id.pdf — generated on demand from the reader's print view.
 // Chromium needs a few seconds on a cold start; the CDN caches for a minute.
@@ -11,11 +11,5 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const doc = await getPublicDocument(getStore(), id);
-  if (!doc || !doc.settings.allowPdf) return pdfNotFound();
-  return pdfResponse(
-    request,
-    `/share/${doc.id}?print=1`,
-    documentFilename(doc, "pdf"),
-  );
+  return documentPdfResponse(request, await getPublicDocument(getStore(), id), null);
 }

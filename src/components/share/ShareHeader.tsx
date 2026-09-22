@@ -6,10 +6,16 @@ export function ShareHeader({
   updatedAt,
   createdAt,
   href = null,
+  versionLabel = null,
+  superseded = null,
 }: {
   title: string | null;
   createdAt: string;
   updatedAt: string;
+  /** The draft being read, e.g. "1.0". */
+  versionLabel?: string | null;
+  /** Set only on an archived draft: when it was replaced, and by what. */
+  superseded?: { at: string; currentHref: string } | null;
   /**
    * Canonical URL of the thing being titled. Given one, the H1 becomes the
    * share link itself — the most obvious place to grab it from. Omitted for
@@ -28,6 +34,19 @@ export function ShareHeader({
         <span>{created}</span>
         {updated && <span>Updated {updated}</span>}
       </div>
+      {/* Reading an old draft should never be a thing you discover late.
+          Same meta line, one notch louder, directly under the dates. */}
+      {superseded && (
+        <p className="kicker share-superseded mt-2">
+          <span>Draft {versionLabel ?? "—"}</span>
+          <span aria-hidden="true">·</span>
+          <span>superseded {formatDate(superseded.at)}</span>
+          <span aria-hidden="true">·</span>
+          <a href={superseded.currentHref} className="share-superseded__link">
+            Current draft →
+          </a>
+        </p>
+      )}
       {/* The lifted H1, rendered once, here — never again in the body. */}
       <h1 className="share-title mt-4">
         {href ? (

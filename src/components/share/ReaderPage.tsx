@@ -3,26 +3,9 @@ import { ShareHeader } from "./ShareHeader";
 import { DocumentViewer, type ViewerDocument } from "./DocumentViewer";
 import { AttachmentTree, type ViewerAttachment } from "./AttachmentTree";
 import { TableOfContents } from "./TableOfContents";
+import type { VersionOption } from "./VersionMenu";
 
-/**
- * The reader page, whole: title block, side pane, viewer. The document and
- * each of its context files render through this one component, so a file
- * promoted to a page is the same page — same bar, same actions, same theme
- * and size controls, same contents — pointed at different Markdown.
- */
-export function ReaderPage({
-  title,
-  href,
-  createdAt,
-  updatedAt,
-  toc,
-  doc,
-  initialView = "reader",
-  documentName,
-  documentHref,
-  files,
-  currentFile = null,
-}: {
+export type ReaderPageProps = {
   title: string | null;
   /** Canonical URL of what is being shown; the H1 links to it. */
   href: string;
@@ -36,7 +19,36 @@ export function ReaderPage({
   documentHref: string;
   files: ViewerAttachment[];
   currentFile?: string | null;
-}) {
+  /** The draft being read, and every draft of this document. */
+  versionLabel?: string | null;
+  versions?: VersionOption[];
+  /** Set only on an archived draft: when it was replaced, and by what. */
+  superseded?: { at: string; currentHref: string } | null;
+};
+
+/**
+ * The reader page, whole: title block, side pane, viewer. The document and
+ * each of its context files render through this one component, so a file
+ * promoted to a page is the same page — same bar, same actions, same theme
+ * and size controls, same contents — pointed at different Markdown. An
+ * archived draft is that page once more, pointed at an older snapshot.
+ */
+export function ReaderPage({
+  title,
+  href,
+  createdAt,
+  updatedAt,
+  toc,
+  doc,
+  initialView = "reader",
+  documentName,
+  documentHref,
+  files,
+  currentFile = null,
+  versionLabel = null,
+  versions = [],
+  superseded = null,
+}: ReaderPageProps) {
   // The side pane carries the file tree (when there are attachments) above
   // the contents list. With neither, the prose gets the whole measure. The
   // viewer places it beside the body, under a bar that spans both.
@@ -55,8 +67,21 @@ export function ReaderPage({
 
   return (
     <div className="shell">
-      <ShareHeader title={title} href={href} createdAt={createdAt} updatedAt={updatedAt} />
-      <DocumentViewer doc={doc} initialView={initialView} aside={aside} />
+      <ShareHeader
+        title={title}
+        href={href}
+        createdAt={createdAt}
+        updatedAt={updatedAt}
+        versionLabel={versionLabel}
+        superseded={superseded}
+      />
+      <DocumentViewer
+        doc={doc}
+        initialView={initialView}
+        aside={aside}
+        versionLabel={versionLabel}
+        versions={versions}
+      />
     </div>
   );
 }

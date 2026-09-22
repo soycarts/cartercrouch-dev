@@ -5,6 +5,12 @@ import type { NextConfig } from "next";
 // so the personal site's "/" never answers on the share hostname.
 const SHARE_HOST = process.env.SHARE_HOST || "share.carter.md";
 const ID = "[1-9A-HJ-NP-Za-km-z]{22}";
+/**
+ * An archived draft's slug, as it appears in a URL. The "draft" prefix is
+ * what keeps this pattern out of the way of the `files`, `md` and `pdf`
+ * segments it shares a position with — none of them can ever match it.
+ */
+export const VERSION = "draft[0-9A-Za-z_]+";
 const onShareHost = [{ type: "host" as const, value: SHARE_HOST }];
 
 /**
@@ -27,6 +33,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/share/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/share/*/files/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/share/*/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/share/*/*/files/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   async rewrites() {
     return {
@@ -35,12 +43,33 @@ const nextConfig: NextConfig = {
         { source: "/robots.txt", has: onShareHost, destination: "/share/robots.txt" },
         { source: `/:id(${ID}).md`, has: onShareHost, destination: "/share/:id/md" },
         { source: `/:id(${ID}).pdf`, has: onShareHost, destination: "/share/:id/pdf" },
+        // The same two suffixes inside an archived draft. Their output lands
+        // under /share, which the catch-all below already skips, so neither
+        // gets rewritten a second time.
+        {
+          source: `/:id(${ID})/:version(${VERSION}).md`,
+          has: onShareHost,
+          destination: "/share/:id/:version/md",
+        },
+        {
+          source: `/:id(${ID})/:version(${VERSION}).pdf`,
+          has: onShareHost,
+          destination: "/share/:id/:version/pdf",
+        },
         // Everything else on the share host maps onto /share/*.
         { source: `/:path(${SHARE_CATCH_ALL})`, has: onShareHost, destination: "/share/:path" },
         // Same suffix routes on the /share mount itself, so local dev and the
         // cartercrouch.dev mirror behave identically to the share host.
         { source: `/share/:id(${ID}).md`, destination: "/share/:id/md" },
         { source: `/share/:id(${ID}).pdf`, destination: "/share/:id/pdf" },
+        {
+          source: `/share/:id(${ID})/:version(${VERSION}).md`,
+          destination: "/share/:id/:version/md",
+        },
+        {
+          source: `/share/:id(${ID})/:version(${VERSION}).pdf`,
+          destination: "/share/:id/:version/pdf",
+        },
       ],
     };
   },

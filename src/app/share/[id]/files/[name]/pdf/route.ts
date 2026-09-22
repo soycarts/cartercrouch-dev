@@ -1,5 +1,5 @@
-import { getStore, getPublicDocument, findAttachment } from "@/lib/share";
-import { pdfNotFound, pdfResponse } from "@/lib/share/pdf-response";
+import { getStore, getPublicDocument } from "@/lib/share";
+import { attachmentPdfResponse } from "@/lib/share/responses";
 
 // GET /:id/files/:name/pdf — an attachment printed with the reader styling.
 export const dynamic = "force-dynamic";
@@ -10,12 +10,5 @@ export async function GET(
   { params }: { params: Promise<{ id: string; name: string }> },
 ) {
   const { id, name } = await params;
-  const doc = await getPublicDocument(getStore(), id);
-  const file = doc ? findAttachment(doc, name) : null;
-  if (!doc || !file || !doc.settings.allowPdf) return pdfNotFound();
-  return pdfResponse(
-    request,
-    `/share/${doc.id}?print=1&file=${encodeURIComponent(file.name)}`,
-    file.name.replace(/\.md$/i, ".pdf"),
-  );
+  return attachmentPdfResponse(request, await getPublicDocument(getStore(), id), name, null);
 }
