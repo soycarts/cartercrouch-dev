@@ -340,3 +340,120 @@ describe("draft routes", () => {
     expect((await bumped.json()).error).toMatch(/previousVersion/);
   });
 });
+
+/**
+ * `?diff=1` is a link someone was sent, so it has to survive the route, and
+ * it has to mean nothing on the page that has nothing to compare itself
+ * with. These go through the page components rather than through
+ * `sharePageProps` so the searchParams shape is covered too.
+ */
+describe("the diff query parameter", () => {
+  let id: string;
+
+  beforeAll(async () => {
+    const { POST } = await import("@/app/share/api/share/route");
+    const { PUT } = await import("@/app/share/api/share/[id]/route");
+    const headers = {
+      authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+      "content-type": "application/json",
+    };
+    const res = await POST(
+      new Request("http://x/api/share", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          markdown: "# Diff doc\n\nOne.\n",
+          version: "1.0",
+          attachments: [{ name: "spec.md", markdown: "# Spec\n\nOld.\n" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    id = (await res.json()).id;
+    const bumped = await PUT(
+      new Request(`http://x/api/share/${id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          markdown: "# Diff doc\n\nTwo.\n",
+          version: "1.1",
+          previousVersion: "1.0",
+          attachments: [{ name: "spec.md", markdown: "# Spec\n\nNew.\n" }],
+        }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(bumped.status).toBe(200);
+  });
+
+  /** The reader props behind whichever page component rendered. */
+  const readerOf = (element: unknown) => {
+    const props = (element as { props: Record<string, unknown> }).props;
+    return (props.reader ?? props) as {
+      initialDiff?: boolean;
+      doc: { diff?: { stats: { changed: number } } };
+    };
+  };
+
+  it("opens the archived draft on the diff", async () => {
+    const { default: Page } = await import("@/app/share/[id]/[version]/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0" }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(true);
+    expect(reader.doc.diff!.stats.changed).toBe(1);
+  });
+
+  it("computes the diff even when the page opens on the draft", async () => {
+    const { default: Page } = await import("@/app/share/[id]/[version]/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(reader.initialDiff).toBe(false);
+    expect(reader.doc.diff).toBeDefined();
+  });
+
+  it("ignores it on the current draft, which has nothing to compare with", async () => {
+    const { default: Page } = await import("@/app/share/[id]/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(false);
+    expect(reader.doc.diff).toBeUndefined();
+  });
+
+  it("carries the same parameter on an archived context file", async () => {
+    const { default: Page } = await import(
+      "@/app/share/[id]/[version]/files/[name]/view/page"
+    );
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(true);
+    expect(reader.doc.diff!.stats.changed).toBe(1);
+  });
+
+  it("ignores it on a context file of the current draft", async () => {
+    const { default: Page } = await import("@/app/share/[id]/files/[name]/view/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, name: "spec.md" }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(false);
+    expect(reader.doc.diff).toBeUndefined();
+  });
+});
