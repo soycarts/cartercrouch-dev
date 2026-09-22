@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocumentDiff } from "@/lib/share/diff";
 import type { RenderedSection } from "@/lib/share/markdown";
-import { isEmptyDiff } from "@/lib/share/diff";
+import { hasRenderedChange, hasSourceChange } from "@/lib/share/diff";
 import { DiffProse } from "./DiffProse";
 import { DiffSource } from "./DiffSource";
 import { Prose } from "./Prose";
@@ -127,26 +127,42 @@ function SourceBox({ markdown }: { markdown: string }) {
  * One line above the diff saying which way round it is and how much moved.
  * The header's superseded notice says *that* this draft was replaced; this
  * says what the replacement did.
+ *
+ * The counts are the ones the mode being read can actually show: blocks in
+ * the Reader, hunks in the Markdown mode. One set of numbers over the other
+ * mode's body is a line that contradicts what is under it.
+ *
+ * The separators are in the text, not between the elements, so the line
+ * reads as one sentence to anything that takes its textContent.
  */
 function DiffSummary({
   diff,
+  view,
   versionLabel,
 }: {
   diff: DocumentDiff;
+  view: View;
   versionLabel: string | null;
 }) {
   const { added, removed, changed } = diff.stats;
-  const counts = [
-    changed > 0 ? `${changed} changed` : null,
-    added > 0 ? `${added} added` : null,
-    removed > 0 ? `${removed} removed` : null,
-  ].filter(Boolean);
+  const counts =
+    view === "markdown"
+      ? diff.source.hunks.length > 0
+        ? [`${diff.source.hunks.length} hunk${diff.source.hunks.length === 1 ? "" : "s"}`]
+        : []
+      : [
+          changed > 0 ? `${changed} changed` : null,
+          added > 0 ? `${added} added` : null,
+          removed > 0 ? `${removed} removed` : null,
+        ].filter(Boolean);
   return (
     <p className="share-diff-summary">
       <span>
         Draft {versionLabel ?? "archived"} → draft {diff.liveLabel}
       </span>
-      {counts.length > 0 && <span className="share-diff-summary__counts">{counts.join(" · ")}</span>}
+      {counts.length > 0 && (
+        <span className="share-diff-summary__counts">{` · ${counts.join(" · ")}`}</span>
+      )}
     </p>
   );
 }
@@ -228,13 +244,21 @@ export function DocumentViewer({
 
   // The two modes keep their meaning under the diff: Reader still renders
   // prose, Markdown still shows source. Only what they are pointed at
-  // changes.
+  // changes — and each mode answers for its own emptiness. Block statistics
+  // and line hunks do not agree about what "no change" means: a draft that
+  // gained a trailing space has a hunk and no changed block, and saying "no
+  // differences" over a patch that is plainly showing one is worse than
+  // saying nothing.
+  const empty = doc.diff
+    ? !(view === "markdown" ? hasSourceChange(doc.diff) : hasRenderedChange(doc.diff))
+    : true;
+
   const body =
     diff && doc.diff ? (
       <div className="share-diff">
-        <DiffSummary diff={doc.diff} versionLabel={versionLabel} />
+        <DiffSummary diff={doc.diff} view={view} versionLabel={versionLabel} />
         {doc.diff.note && <p className="share-diff-note">{doc.diff.note}</p>}
-        {isEmptyDiff(doc.diff) ? (
+        {empty ? (
           <p className="share-diff-note">No differences from the current draft.</p>
         ) : view === "markdown" ? (
           <DiffSource source={doc.diff.source} />

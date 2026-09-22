@@ -12,7 +12,14 @@ import type { DiffBlock } from "@/lib/share/diff";
  * through the reader's own sanitizing pipeline and then sanitizes the marks
  * it adds on top — the only reason dangerouslySetInnerHTML is safe, exactly
  * as in `Prose`.
+ *
+ * Which side a block is on is never carried by its colour alone. Each one is
+ * a labelled group, and the label is in the text — read out by a screen
+ * reader, and there in a high-contrast mode or on a printout where the tint
+ * is the first thing to go.
  */
+const LABEL = { del: "Removed", add: "Added", equal: "Unchanged" } as const;
+
 export function DiffProse({ blocks }: { blocks: DiffBlock[] }) {
   return (
     <article className="prose-share share-diff-prose">
@@ -25,7 +32,13 @@ export function DiffProse({ blocks }: { blocks: DiffBlock[] }) {
             <div className="prose-body min-w-0" dangerouslySetInnerHTML={{ __html: block.html }} />
           </details>
         ) : (
-          <div key={i} className={`share-diff-block is-${block.kind}`}>
+          <div
+            key={i}
+            className={`share-diff-block is-${block.kind}`}
+            role="group"
+            aria-label={LABEL[block.kind]}
+          >
+            {block.kind !== "equal" && <span className="sr-only">{`${LABEL[block.kind]}: `}</span>}
             <div className="prose-body min-w-0" dangerouslySetInnerHTML={{ __html: block.html }} />
           </div>
         ),

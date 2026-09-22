@@ -586,14 +586,28 @@ export async function renderedDiff(
   return { blocks: out, stats };
 }
 
-/** True when there is nothing to show: the two drafts read the same. */
+/**
+ * Whether each mode has anything to show. They are asked separately on
+ * purpose: block statistics and line hunks do not agree about what "no
+ * change" means, and each mode has to answer for its own body.
+ *
+ * A draft that gained trailing whitespace on one line is the case that
+ * separates them — a hunk, and not a single changed block, because the
+ * blocks compare on whitespace-collapsed text. Reading "no differences"
+ * over a patch that is plainly showing one is worse than saying nothing.
+ */
+export function hasRenderedChange(diff: DocumentDiff): boolean {
+  return diff.stats.added + diff.stats.removed + diff.stats.changed > 0;
+}
+
+export function hasSourceChange(diff: DocumentDiff): boolean {
+  return diff.source.hunks.length > 0;
+}
+
+/** True when neither mode has anything to show: the two drafts read the
+ *  same, to the line as well as to the block. */
 export function isEmptyDiff(diff: DocumentDiff): boolean {
-  return (
-    diff.source.hunks.length === 0 &&
-    diff.stats.added === 0 &&
-    diff.stats.removed === 0 &&
-    diff.stats.changed === 0
-  );
+  return !hasSourceChange(diff) && !hasRenderedChange(diff);
 }
 
 /**

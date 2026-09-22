@@ -1,7 +1,16 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { documentDiff, isEmptyDiff, renderedDiff, sourceHunks, wordMarks } from "../diff";
+import {
+  documentDiff,
+  hasRenderedChange,
+  hasSourceChange,
+  isEmptyDiff,
+  renderedDiff,
+  sourceHunks,
+  similarity,
+  wordMarks,
+} from "../diff";
 import { renderDocument, splitBlocks, stringifyDecorated, topLevelBlocks } from "../markdown";
 
 const ROOT = path.resolve(__dirname, "../../../..");
@@ -616,5 +625,56 @@ describe("F3: a rewrite is paired with the block it rewrote", () => {
     const adds = blocks.filter((b) => b.kind === "add");
     expect(adds[0].html).toContain("alpha");
     expect(adds[1].html).toContain("beta");
+  });
+});
+
+describe("F4: each mode answers for its own emptiness", () => {
+  const BODY = ["# Doc", "", "A paragraph of the document.", "", "And a second one.", ""].join("\n");
+
+  it("separates a whitespace-only change: a hunk, and no changed block", async () => {
+    // The blocks compare on whitespace-collapsed text, so this is a line
+    // change and not a block change. Both answers are right; they are just
+    // not the same answer, and each mode has to give its own.
+    const diff = await documentDiff({
+      archived: BODY,
+      live: BODY.replace("A paragraph of the document.", "A paragraph of the document.   "),
+      liveLabel: "1.1",
+    });
+    expect(hasSourceChange(diff)).toBe(true);
+    expect(hasRenderedChange(diff)).toBe(false);
+    expect(isEmptyDiff(diff)).toBe(false);
+  });
+
+  it("agrees when there is a real change", async () => {
+    const diff = await documentDiff({
+      archived: BODY,
+      live: BODY.replace("second", "third"),
+      liveLabel: "1.1",
+    });
+    expect(hasSourceChange(diff)).toBe(true);
+    expect(hasRenderedChange(diff)).toBe(true);
+  });
+
+  it("agrees when there is none", async () => {
+    const diff = await documentDiff({ archived: BODY, live: BODY, liveLabel: "1.1" });
+    expect(hasSourceChange(diff)).toBe(false);
+    expect(hasRenderedChange(diff)).toBe(false);
+    expect(isEmptyDiff(diff)).toBe(true);
+  });
+});
+
+describe("similarity", () => {
+  it("is 1 for the same text and 0 for unrelated text", () => {
+    expect(similarity("the same words", "the same words")).toBe(1);
+    expect(similarity("alpha bravo charlie", "xylophone")).toBeLessThan(0.5);
+  });
+
+  it("counts against the shorter side, so a sentence grown into a paragraph pairs", () => {
+    expect(similarity("Signed off by research.", "Signed off by research. And by ops.")).toBe(1);
+  });
+
+  it("is 0 when either side has no words", () => {
+    expect(similarity("", "something")).toBe(0);
+    expect(similarity("   ", "something")).toBe(0);
   });
 });
