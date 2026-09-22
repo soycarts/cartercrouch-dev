@@ -298,19 +298,19 @@ function stripIds(nodes: RootContent[]): void {
   }
 }
 
-/** Take the block's own indentation off, so a nested list item or an indented
- *  continuation renders as itself rather than as an indented code block. */
+/**
+ * Take the block's own indentation off, so a nested list item or an indented
+ * continuation renders as itself rather than as an indented code block.
+ *
+ * Spaces only. A leading tab is a four-space indent to CommonMark, which
+ * makes the line an indented code block — the renderer shows it as code, and
+ * stripping the tab here would show it as a list item in the diff and as
+ * code in the draft beside it.
+ */
 function dedent(text: string): string {
   const rows = text.split("\n").filter((row) => row.trim() !== "");
   if (rows.length === 0) return text;
-  const width = Math.min(
-    ...rows.map((row) => {
-      const match = /^[ \t]*/.exec(row)![0];
-      // A tab is a four-space indent to CommonMark; count it as one unit and
-      // only ever strip whole characters, which keeps relative indent intact.
-      return match.length;
-    }),
-  );
+  const width = Math.min(...rows.map((row) => /^ */.exec(row)![0].length));
   if (width === 0) return text;
   return text
     .split("\n")

@@ -263,17 +263,24 @@ export function DocumentViewer({
             {tab("markdown", "Markdown")}
           </div>
           {/* Right of the view toggle, boxed like the draft menu: it is not a
-              third view, it is what the two views are pointed at. */}
+              third view, it is what the two views are pointed at.
+
+              "DIFF", not "DIFF VS LIVE": an archived page's bar measures
+              1158px of the 1180px measure before this control exists, so no
+              label fits on one row. The short one keeps the wrapped row as
+              small as possible, and the title, the aria-label and the
+              summary line under the bar all say which way round it is. */}
           {canDiff && (
             <div className="share-diffbox">
               <button
                 type="button"
                 className={`share-tab share-diff-toggle ${diff ? "is-active" : ""}`}
                 aria-pressed={diff}
+                aria-label="Diff vs live"
                 title="Diff vs live"
                 onClick={() => setDiff((was) => !was)}
               >
-                Diff vs live
+                Diff
               </button>
             </div>
           )}
