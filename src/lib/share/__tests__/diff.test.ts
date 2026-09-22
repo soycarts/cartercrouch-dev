@@ -7,10 +7,10 @@ import { renderDocument, splitBlocks, stringifyDecorated, topLevelBlocks } from 
 const ROOT = path.resolve(__dirname, "../../../..");
 const fixture = (name: string) => readFileSync(path.join(ROOT, "fixtures", name), "utf8");
 
-/** Every line of a hunk, flattened, for the assertions that only care about
- *  what changed rather than where. */
-const flat = (hunks: ReturnType<typeof sourceHunks>) =>
-  hunks.flatMap((h) => h.lines.map((l) => `${l.kind[0]} ${l.text}`));
+/** Every line of every hunk, flattened, for the assertions that only care
+ *  about what changed rather than where. */
+const flat = (source: ReturnType<typeof sourceHunks>) =>
+  source.hunks.flatMap((h) => h.lines.map((l) => `${l.kind[0]} ${l.text}`));
 
 const BASE = [
   "# Doc",
@@ -31,26 +31,26 @@ const BASE = [
 
 describe("source hunks", () => {
   it("shows an insertion with context on both sides", () => {
-    const hunks = sourceHunks(BASE, BASE.replace("Three.", "Three.\n\nInserted."));
-    expect(hunks).toHaveLength(1);
-    expect(flat(hunks)).toContain("a Inserted.");
+    const source = sourceHunks(BASE, BASE.replace("Three.", "Three.\n\nInserted."));
+    expect(source.hunks).toHaveLength(1);
+    expect(flat(source)).toContain("a Inserted.");
     // Three lines of context each side, and nothing else marked.
-    expect(flat(hunks).filter((l) => l.startsWith("a "))).toHaveLength(2); // the line and its blank
-    expect(flat(hunks).filter((l) => l.startsWith("d "))).toHaveLength(0);
+    expect(flat(source).filter((l) => l.startsWith("a "))).toHaveLength(2); // the line and its blank
+    expect(flat(source).filter((l) => l.startsWith("d "))).toHaveLength(0);
   });
 
   it("shows a deletion", () => {
-    const hunks = sourceHunks(BASE, BASE.replace("Four.\n\n", ""));
-    expect(flat(hunks)).toContain("d Four.");
-    expect(flat(hunks).filter((l) => l.startsWith("a "))).toHaveLength(0);
+    const source = sourceHunks(BASE, BASE.replace("Four.\n\n", ""));
+    expect(flat(source)).toContain("d Four.");
+    expect(flat(source).filter((l) => l.startsWith("a "))).toHaveLength(0);
   });
 
   it("marks the changed words of a replaced line", () => {
-    const hunks = sourceHunks(
+    const source = sourceHunks(
       "The quick brown fox jumps over the lazy dog.\n",
       "The quick red fox leaps over the lazy dog.\n",
     );
-    const [del, add] = hunks[0].lines.filter((l) => l.kind !== "context");
+    const [del, add] = source.hunks[0].lines.filter((l) => l.kind !== "context");
     expect(del.kind).toBe("del");
     expect(add.kind).toBe("add");
     expect(del.marks!.map((m) => del.text.slice(m.start, m.end))).toEqual(["brown", "jumps"]);
@@ -58,13 +58,14 @@ describe("source hunks", () => {
   });
 
   it("leaves a wholly rewritten line unmarked rather than marking all of it", () => {
-    const hunks = sourceHunks("Alpha beta gamma.\n", "Something else entirely here.\n");
-    for (const line of hunks[0].lines) expect(line.marks).toBeUndefined();
+    const source = sourceHunks("Alpha beta gamma.\n", "Something else entirely here.\n");
+    for (const line of source.hunks[0].lines) expect(line.marks).toBeUndefined();
   });
 
   it("counts the unchanged lines it is not showing", () => {
     const long = Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n");
-    const hunks = sourceHunks(long, long.replace("line 0", "first").replace("line 30", "last"));
+    const source = sourceHunks(long, long.replace("line 0", "first").replace("line 30", "last"));
+    const hunks = source.hunks;
     expect(hunks).toHaveLength(2);
     // Nothing is skipped before the first hunk; the gap between the two is.
     expect(hunks[0].skipped).toBe(0);
@@ -76,16 +77,22 @@ describe("source hunks", () => {
   });
 
   it("has nothing to say about two identical documents", () => {
-    expect(sourceHunks(BASE, BASE)).toEqual([]);
+    expect(sourceHunks(BASE, BASE)).toEqual({ hunks: [], trailing: 0 });
   });
 
   it("does not read a CRLF document as a whole-file rewrite", () => {
-    expect(sourceHunks(BASE.replace(/\n/g, "\r\n"), BASE)).toEqual([]);
+    expect(sourceHunks(BASE.replace(/\n/g, "\r\n"), BASE)).toEqual({ hunks: [], trailing: 0 });
   });
 
-  it("drops jsdiff's no-newline marker instead of showing it as a line", () => {
-    const hunks = sourceHunks("x\ny", "x\nz");
-    expect(flat(hunks)).toEqual(["c x", "d y", "a z"]);
+  it("keeps jsdiff's no-newline note as a line of its own", () => {
+    const source = sourceHunks("x\ny", "x\nz");
+    expect(flat(source)).toEqual([
+      "c x",
+      "d y",
+      "n  No newline at end of file",
+      "a z",
+      "n  No newline at end of file",
+    ]);
   });
 });
 
@@ -275,8 +282,8 @@ describe("documentDiff", () => {
     expect(diff.note).toBe("This file is not in the current draft.");
     expect(isEmptyDiff(diff)).toBe(false);
     // The whole file, as removed, in both representations.
-    expect(diff.source).toHaveLength(1);
-    expect(diff.source[0].lines.every((l) => l.kind === "del")).toBe(true);
+    expect(diff.source.hunks).toHaveLength(1);
+    expect(diff.source.hunks[0].lines.every((l) => l.kind === "del")).toBe(true);
     expect(diff.rendered.every((b) => b.kind === "del")).toBe(true);
   });
 });
@@ -459,7 +466,7 @@ describe("F1: line endings are not a change", () => {
     const edited = CRLF.replace("Sign-off on the definitions", "Sign-off on the metrics");
     const diff = await documentDiff({ archived: CRLF, live: edited, liveLabel: "1.1" });
     expect(diff.stats).toEqual({ added: 0, removed: 0, changed: 1 });
-    expect(diff.source).toHaveLength(1);
+    expect(diff.source.hunks).toHaveLength(1);
     expect(
       diff.rendered.find((b) => b.kind === "add")!.html,
     ).toContain('<mark class="share-diff-ins">metrics</mark>');
@@ -474,7 +481,53 @@ describe("F1: line endings are not a change", () => {
       const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
       const blocksChanged =
         diff.stats.added + diff.stats.removed + diff.stats.changed > 0;
-      expect(diff.source.length > 0).toBe(blocksChanged);
+      expect(diff.source.hunks.length > 0).toBe(blocksChanged);
     }
+  });
+});
+
+describe("F6, F7, F8: the Markdown mode is a patch", () => {
+  const BODY = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n") + "\n";
+
+  it("uses ASCII markers, one character wide, with no padding in the text", () => {
+    const source = sourceHunks("- a bullet\n", "- a bullet changed\n");
+    // The del line's text is the line itself — the marker is not part of it,
+    // so the component can put exactly one character in front of it.
+    const del = source.hunks[0].lines.find((l) => l.kind === "del")!;
+    expect(del.text).toBe("- a bullet");
+    expect(del.text.startsWith("- -")).toBe(false);
+  });
+
+  it("counts the unchanged lines after the last hunk", () => {
+    // One change near the top: three lines of context, then everything else.
+    const source = sourceHunks(BODY, BODY.replace("line 2\n", "line two\n"));
+    expect(source.hunks).toHaveLength(1);
+    const shown = source.hunks[0].lines.filter((l) => l.kind !== "add").length;
+    expect(source.hunks[0].skipped + shown + source.trailing).toBe(40);
+    expect(source.trailing).toBeGreaterThan(30);
+  });
+
+  it("announces both ends when the change is in the middle", () => {
+    const source = sourceHunks(BODY, BODY.replace("line 20\n", "line twenty\n"));
+    expect(source.hunks[0].skipped).toBeGreaterThan(0);
+    expect(source.trailing).toBeGreaterThan(0);
+  });
+
+  it("has nothing to announce when the whole file is one hunk", () => {
+    const source = sourceHunks("a\nb\n", "a\nc\n");
+    expect(source.hunks[0].skipped).toBe(0);
+    expect(source.trailing).toBe(0);
+  });
+
+  it("claims no trailing lines when there are no hunks at all", () => {
+    expect(sourceHunks(BODY, BODY)).toEqual({ hunks: [], trailing: 0 });
+  });
+
+  it("keeps the no-newline note attached to the side it belongs to", () => {
+    const source = sourceHunks("a\nb", "a\nb\n");
+    const kinds = source.hunks[0].lines.map((l) => `${l.kind}:${l.text}`);
+    expect(kinds).toContain("note: No newline at end of file");
+    // And it is not mistaken for context that the reader could edit.
+    expect(source.hunks[0].lines.filter((l) => l.kind === "note")).toHaveLength(1);
   });
 });

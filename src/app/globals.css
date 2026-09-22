@@ -692,13 +692,23 @@
     background: var(--paper-raised);
   }
 
-  /* The patch. `.share-source` gives it the box and the mono measure; this
-     adds the marker column and the per-line tint. Each line is its own
+  /* The patch. `.share-source` gives each hunk the box and the mono measure;
+     this adds the marker column and the per-line tint. Each line is its own
      block so the tint spans the row, and the marker is a real character in
      the text rather than a pseudo-element, so a copy out of the box is
-     still a patch. */
+     still a patch — which is also why the gap after the marker is padding
+     and not a space. */
+  .share-diff-hunks {
+    display: flex;
+    flex-direction: column;
+  }
+
   .share-diff-source {
     padding-inline: 0;
+  }
+
+  .share-diff-source + .share-diff-source {
+    border-top: 0;
   }
 
   .share-diff-line {
@@ -707,8 +717,10 @@
   }
 
   .share-diff-gutter {
+    display: inline-block;
+    width: 1ch;
+    padding-right: 0.7ch;
     color: var(--ink-muted);
-    user-select: none;
   }
 
   .share-diff-line.is-add {
@@ -729,20 +741,22 @@
     color: var(--diff-del-rule);
   }
 
-  /* What was skipped between hunks, in the mono kicker voice the bar uses. */
+  /* What is not being shown, between the hunks and at either end. Outside
+     the <pre> on purpose, and unselectable, so it cannot end up pasted into
+     the middle of a patch. */
   .share-diff-sep {
-    display: block;
-    font-size: 0.9em;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-muted);
-    padding: 0.6rem 1.25rem;
-    border-block: 1px solid var(--rule);
-    margin-block: 0.4rem;
+    padding: 0.55rem 1.25rem;
+    user-select: none;
   }
 
-  .share-diff-sep:first-child {
-    margin-top: 0;
+  .share-diff-line.is-note {
+    color: var(--ink-muted);
   }
 
   /* Word marks, in both modes. `mark` and `del` are the right elements —

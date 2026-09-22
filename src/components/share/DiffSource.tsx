@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { Hunk, HunkLine } from "@/lib/share/diff";
+import type { HunkLine, SourceDiff } from "@/lib/share/diff";
 
 /**
  * The changed words inside a replaced line.
@@ -31,35 +31,46 @@ function marked(line: HunkLine) {
   return out;
 }
 
-const MARKER = { add: "+ ", del: "− ", context: "  " } as const;
+/**
+ * One character in the first column, as a patch has it: `+`, `-`, a space,
+ * or the backslash of jsdiff's no-newline note. ASCII, and the gap after it
+ * is padding rather than a space, so selecting a hunk and pasting it gives a
+ * unified diff a patch tool would accept — not one with a minus sign and a
+ * stray space in front of every line.
+ */
+const MARKER = { add: "+", del: "-", context: " ", note: "\\" } as const;
+
+const unchanged = (n: number) => `⋯ ${n} unchanged line${n === 1 ? "" : "s"}`;
 
 /**
- * The Markdown mode's diff: a patch, read the way a patch is read. Every
- * line carries its own marker in a fixed column, so the shape survives a
- * copy out of the box as well as the tint does inside it.
+ * The Markdown mode's diff: a patch, read the way a patch is read.
+ *
+ * Each hunk is its own `<pre>`, and what lies between them is a paragraph
+ * outside it — so selecting a hunk copies the hunk. The counts are chrome
+ * and stay out of the clipboard, at both ends: a diff that shows six lines
+ * of a four-hundred-line document should say so.
  */
-export function DiffSource({ hunks }: { hunks: Hunk[] }) {
+export function DiffSource({ source }: { source: SourceDiff }) {
   return (
-    <pre
-      className="share-source share-diff-source"
-      tabIndex={0}
-      aria-label="Markdown differences from the current draft"
-    >
-      {hunks.map((hunk, h) => (
+    <div className="share-diff-hunks">
+      {source.hunks.map((hunk, h) => (
         <Fragment key={`${hunk.oldStart}-${hunk.newStart}`}>
-          {hunk.skipped > 0 && (
-            <span className="share-diff-sep">
-              {`⋯ ${hunk.skipped} unchanged line${hunk.skipped === 1 ? "" : "s"}`}
-            </span>
-          )}
-          {hunk.lines.map((line, i) => (
-            <span key={`${h}-${i}`} className={`share-diff-line is-${line.kind}`}>
-              <span className="share-diff-gutter">{MARKER[line.kind]}</span>
-              {marked(line)}
-            </span>
-          ))}
+          {hunk.skipped > 0 && <p className="share-diff-sep">{unchanged(hunk.skipped)}</p>}
+          <pre
+            className="share-source share-diff-source"
+            tabIndex={0}
+            aria-label={`Differences from line ${hunk.oldStart}`}
+          >
+            {hunk.lines.map((line, i) => (
+              <span key={`${h}-${i}`} className={`share-diff-line is-${line.kind}`}>
+                <span className="share-diff-gutter">{MARKER[line.kind]}</span>
+                {marked(line)}
+              </span>
+            ))}
+          </pre>
         </Fragment>
       ))}
-    </pre>
+      {source.trailing > 0 && <p className="share-diff-sep">{unchanged(source.trailing)}</p>}
+    </div>
   );
 }

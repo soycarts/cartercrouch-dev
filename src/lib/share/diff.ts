@@ -32,7 +32,10 @@ import {
 /** A half-open range of character offsets into a line or a block's text. */
 export type Run = { start: number; end: number };
 
-export type HunkLineKind = "context" | "del" | "add";
+/** `note` is jsdiff's "\\ No newline at end of file", which is part of the
+ *  patch and says something a reader needs: the file does not end in a
+ *  newline. It is kept, not dropped. */
+export type HunkLineKind = "context" | "del" | "add" | "note";
 
 export type HunkLine = {
   kind: HunkLineKind;
@@ -51,6 +54,16 @@ export type Hunk = {
   lines: HunkLine[];
 };
 
+/** The Markdown mode's whole answer: the hunks, and what it is not showing
+ *  at either end. A hunk count alone cannot say "and 200 more lines follow,
+ *  unchanged", and a reader who cannot see that has no idea how much of the
+ *  document the diff covers. */
+export type SourceDiff = {
+  hunks: Hunk[];
+  /** Unchanged lines after the last hunk. */
+  trailing: number;
+};
+
 export type DiffBlock =
   /** `equal` is context; `del` is the archived draft's, `add` the current's. */
   | { kind: "equal" | "del" | "add"; html: string }
@@ -67,7 +80,7 @@ export type DiffStats = {
 };
 
 export type DocumentDiff = {
-  source: Hunk[];
+  source: SourceDiff;
   rendered: DiffBlock[];
   stats: DiffStats;
   /** The current draft's label, for the summary line. */
@@ -177,11 +190,12 @@ function markReplacements(hunkLines: HunkLine[]): void {
  * unchanged lines precede it, so the view can say what it is not showing
  * instead of implying the file starts there.
  */
-export function sourceHunks(oldMarkdown: string, newMarkdown: string): Hunk[] {
+export function sourceHunks(oldMarkdown: string, newMarkdown: string): SourceDiff {
+  const archived = normaliseLineEndings(oldMarkdown);
   const patch = structuredPatch(
     "archived",
     "current",
-    normaliseLineEndings(oldMarkdown),
+    archived,
     normaliseLineEndings(newMarkdown),
     "",
     "",
@@ -189,12 +203,14 @@ export function sourceHunks(oldMarkdown: string, newMarkdown: string): Hunk[] {
   );
 
   let previousEnd = 1;
-  return patch.hunks.map((hunk) => {
+  const hunks = patch.hunks.map((hunk) => {
     const out: HunkLine[] = [];
     for (const raw of hunk.lines) {
-      // jsdiff puts "\ No newline at end of file" in the line list itself.
-      if (raw.startsWith("\\")) continue;
-      const kind: HunkLineKind = raw[0] === "+" ? "add" : raw[0] === "-" ? "del" : "context";
+      // Every line carries its marker in the first column, jsdiff's
+      // "\\ No newline at end of file" included. Taking the marker from the
+      // character and the text from the rest keeps the two in step.
+      const kind: HunkLineKind =
+        raw[0] === "+" ? "add" : raw[0] === "-" ? "del" : raw[0] === "\\" ? "note" : "context";
       out.push({ kind, text: raw.slice(1) });
     }
     markReplacements(out);
@@ -202,6 +218,12 @@ export function sourceHunks(oldMarkdown: string, newMarkdown: string): Hunk[] {
     previousEnd = hunk.oldStart + hunk.oldLines;
     return { oldStart: hunk.oldStart, newStart: hunk.newStart, skipped, lines: out };
   });
+
+  // What follows the last hunk. A document that ends in a newline has a
+  // final empty line that is nobody's business, so it does not count.
+  const total = archived.replace(/\n$/, "").split("\n").length;
+  const trailing = hunks.length === 0 ? 0 : Math.max(0, total - (previousEnd - 1));
+  return { hunks, trailing };
 }
 
 /* ---------------------------------------------------------------------------
@@ -494,7 +516,7 @@ export async function renderedDiff(
 /** True when there is nothing to show: the two drafts read the same. */
 export function isEmptyDiff(diff: DocumentDiff): boolean {
   return (
-    diff.source.length === 0 &&
+    diff.source.hunks.length === 0 &&
     diff.stats.added === 0 &&
     diff.stats.removed === 0 &&
     diff.stats.changed === 0

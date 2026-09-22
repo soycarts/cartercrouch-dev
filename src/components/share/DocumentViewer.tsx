@@ -237,7 +237,7 @@ export function DocumentViewer({
         {isEmptyDiff(doc.diff) ? (
           <p className="share-diff-note">No differences from the current draft.</p>
         ) : view === "markdown" ? (
-          <DiffSource hunks={doc.diff.source} />
+          <DiffSource source={doc.diff.source} />
         ) : (
           <DiffProse blocks={doc.diff.rendered} />
         )}

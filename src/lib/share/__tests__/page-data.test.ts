@@ -255,7 +255,7 @@ describe("the diff an archived page carries", () => {
     const archived = await loadShareView(doc.id, "draft1_0", store);
     const props = await sharePageProps(archived!, {});
     const diff = props!.kind === "reader" ? props!.reader.doc.diff! : null;
-    expect(diff!.source).toEqual([]);
+    expect(diff!.source).toEqual({ hunks: [], trailing: 0 });
     expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 0 });
   });
 
