@@ -166,15 +166,18 @@ export function DocumentViewer({
     <div className={compact ? "share-viewer share-viewer--compact" : "share-viewer"}>
       {title && <h1 className="share-title share-title--popup">{title}</h1>}
       <div className="share-bar no-print">
-        <div className="share-toggle" role="tablist">
-          {tab("reader", "Reader")}
-          {tab("markdown", "Markdown")}
+        <div className="share-modes">
           {/* Drafts belong to the document, not to one attachment inside a
               popup — the popup's bar leaves the menu out, as it does the
-              reader controls. */}
+              reader controls. It sits apart from the view toggle: choosing a
+              draft changes what is shown, not how. */}
           {!compact && versionLabel && versions.length > 0 && (
             <VersionMenu label={versionLabel} versions={versions} />
           )}
+          <div className="share-toggle" role="tablist">
+            {tab("reader", "Reader")}
+            {tab("markdown", "Markdown")}
+          </div>
         </div>
         <div className="share-actions">
           <ActionButton label="Copy formatted" onClick={() => copyFormatted(doc.html, doc.markdown)} />
