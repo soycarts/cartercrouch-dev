@@ -288,8 +288,8 @@ export function DocumentViewer({
         <div className="share-actions">
           <ActionButton label="Copy formatted" onClick={() => copyFormatted(doc.html, doc.markdown)} />
           <ActionButton label="Copy markdown" onClick={() => navigator.clipboard.writeText(doc.markdown)} />
-          <ActionButton label="Download formatted" href={`${doc.pdfUrl}?download=1`} />
-          <ActionButton label="Download markdown" href={`${doc.markdownUrl}?download=1`} />
+          <ActionButton label="Download PDF" href={`${doc.pdfUrl}?download=1`} />
+          <ActionButton label="Download MD" href={`${doc.markdownUrl}?download=1`} />
         </div>
         {/* Theme and text size belong to the page, not to a document, so the
             popup's own bar leaves them out — one set of controls, on the bar
