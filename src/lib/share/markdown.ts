@@ -200,6 +200,19 @@ const BLOCK_HTML = /^ {0,3}<[A-Za-z/!?]/;
 /** A GFM delimiter row: `|---|:--:|`. Checked together with an actual pipe. */
 const TABLE_DELIM = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 
+/**
+ * CRLF and CR to LF.
+ *
+ * The parser takes any of the three line endings in its stride, so the
+ * splitter and the diff have to as well: the store keeps Markdown
+ * byte-for-byte, and a draft written on Windows must not read as a
+ * rewritten document. Every line number the splitter reports is a line of
+ * *this* string.
+ */
+export function normaliseLineEndings(markdown: string): string {
+  return markdown.replace(/\r\n?/g, "\n");
+}
+
 export type BlockKind =
   | "heading"
   | "paragraph"
@@ -241,7 +254,7 @@ function isTableDelimiter(line: string): boolean {
  * Blank lines belong to no block; every block's lines are contiguous.
  */
 export function splitBlocks(markdown: string): SourceBlock[] {
-  const lines = closeListsAtLazyLines(markdown).split("\n");
+  const lines = closeListsAtLazyLines(normaliseLineEndings(markdown)).split("\n");
   const blocks: SourceBlock[] = [];
   /** `from` and `to` are 1-based and inclusive. */
   const push = (kind: BlockKind, from: number, to: number) =>
@@ -365,13 +378,14 @@ export function splitBlocks(markdown: string): SourceBlock[] {
 const mdastProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkBreaks);
 
 /** Where each of the renderer's own top-level blocks starts and ends, in
- *  `closeListsAtLazyLines` lines. Read off the mdast, so it is the parser's
+ *  `closeListsAtLazyLines` lines, after line endings are normalised. Read
+ *  off the mdast, so it is the parser's
  *  answer rather than a second opinion — which is what makes it worth
  *  testing `splitBlocks` against. */
 export function topLevelBlocks(
   markdown: string,
 ): { type: string; startLine: number; endLine: number }[] {
-  const root = mdastProcessor.parse(closeListsAtLazyLines(markdown));
+  const root = mdastProcessor.parse(closeListsAtLazyLines(normaliseLineEndings(markdown)));
   return root.children.flatMap((node) =>
     node.position
       ? [{ type: node.type, startLine: node.position.start.line, endLine: node.position.end.line }]

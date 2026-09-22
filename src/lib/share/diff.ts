@@ -2,6 +2,7 @@ import { diffArrays, diffWordsWithSpace, structuredPatch } from "diff";
 import type { Element, RootContent } from "hast";
 import {
   closeListsAtLazyLines,
+  normaliseLineEndings,
   renderHtml,
   splitBlocks,
   stringifyDecorated,
@@ -88,12 +89,6 @@ const MIN_SIMILARITY = 0.3;
 /** An unchanged run longer than this collapses; below it, context is cheaper
  *  to read than a disclosure triangle. */
 const COLLAPSE_OVER = 3;
-
-/** The store keeps Markdown byte-for-byte, CRLF included; a draft written on
- *  Windows must not read as a whole-file rewrite. */
-function normaliseEol(markdown: string): string {
-  return markdown.replace(/\r\n?/g, "\n");
-}
 
 /** Collapse runs that touch or overlap, so one word is one mark. */
 function mergeRuns(runs: Run[]): Run[] {
@@ -186,8 +181,8 @@ export function sourceHunks(oldMarkdown: string, newMarkdown: string): Hunk[] {
   const patch = structuredPatch(
     "archived",
     "current",
-    normaliseEol(oldMarkdown),
-    normaliseEol(newMarkdown),
+    normaliseLineEndings(oldMarkdown),
+    normaliseLineEndings(newMarkdown),
     "",
     "",
     { context: CONTEXT },
@@ -399,9 +394,14 @@ export async function renderedDiff(
   oldMarkdown: string,
   newMarkdown: string,
 ): Promise<{ blocks: DiffBlock[]; stats: DiffStats }> {
-  const oldSource = closeListsAtLazyLines(normaliseEol(oldMarkdown)).split("\n");
-  const oldBlocks = splitBlocks(oldMarkdown);
-  const newBlocks = splitBlocks(newMarkdown);
+  // One normalisation, then everything below works from these two strings:
+  // the block splitter, the source slices the unchanged runs render from,
+  // and the line numbers that tie them together.
+  const archived = normaliseLineEndings(oldMarkdown);
+  const current = normaliseLineEndings(newMarkdown);
+  const oldSource = closeListsAtLazyLines(archived).split("\n");
+  const oldBlocks = splitBlocks(archived);
+  const newBlocks = splitBlocks(current);
   const ops = blockOps(oldBlocks, newBlocks);
 
   const out: DiffBlock[] = [];
@@ -516,9 +516,12 @@ export async function documentDiff({
   live: string | null;
   liveLabel: string;
 }): Promise<DocumentDiff> {
-  const target = live ?? "";
-  const source = sourceHunks(archived, target);
-  const rendered = await renderedDiff(archived, target);
+  // Normalised once, here, and used for both representations: the two modes
+  // must never be looking at different text.
+  const from = normaliseLineEndings(archived);
+  const to = normaliseLineEndings(live ?? "");
+  const source = sourceHunks(from, to);
+  const rendered = await renderedDiff(from, to);
   return {
     source,
     rendered: rendered.blocks,

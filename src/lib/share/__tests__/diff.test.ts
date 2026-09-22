@@ -403,3 +403,78 @@ describe("F11: the second sanitizer pass names its class values", () => {
     expect([...classes]).toEqual(["table-scroll"]);
   });
 });
+
+describe("F1: line endings are not a change", () => {
+  // The document the refuter used: a setext heading, whose underline the
+  // block splitter only recognises when the line has no trailing CR, and a
+  // lazy-continuation list that exercises closeListsAtLazyLines.
+  const LF = [
+    "# Title",
+    "",
+    "A setext heading",
+    "----------------",
+    "",
+    "Timour:",
+    "* Sign-off on the definitions",
+    "Seref:",
+    "* Thresholds",
+    "",
+    "A paragraph that is unchanged, the first of several.",
+    "",
+    "Second unchanged paragraph.",
+    "",
+    "Third unchanged paragraph.",
+    "",
+  ].join("\n");
+  const CRLF = LF.replace(/\n/g, "\r\n");
+  const CR = LF.replace(/\n/g, "\r");
+
+  it("splits the same blocks whatever the line endings", () => {
+    const lf = splitBlocks(LF);
+    for (const [name, variant] of [["CRLF", CRLF], ["CR", CR]] as const) {
+      const got = splitBlocks(variant);
+      expect(got.map((b) => `${b.kind}[${b.startLine}-${b.endLine}]`), name).toEqual(
+        lf.map((b) => `${b.kind}[${b.startLine}-${b.endLine}]`),
+      );
+    }
+  });
+
+  for (const [name, archived, live] of [
+    ["CRLF vs LF", CRLF, LF],
+    ["LF vs CRLF", LF, CRLF],
+    ["CR vs LF", CR, LF],
+    ["CRLF vs CR", CRLF, CR],
+  ] as const) {
+    it(`reports no change for ${name} of identical text`, async () => {
+      const rendered = await renderedDiff(archived, live);
+      expect(rendered.stats).toEqual({ added: 0, removed: 0, changed: 0 });
+      expect(rendered.blocks.every((b) => b.kind === "equal" || b.kind === "collapsed")).toBe(true);
+
+      const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
+      expect(isEmptyDiff(diff)).toBe(true);
+    });
+  }
+
+  it("still finds the real change in two CRLF drafts", async () => {
+    const edited = CRLF.replace("Sign-off on the definitions", "Sign-off on the metrics");
+    const diff = await documentDiff({ archived: CRLF, live: edited, liveLabel: "1.1" });
+    expect(diff.stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(diff.source).toHaveLength(1);
+    expect(
+      diff.rendered.find((b) => b.kind === "add")!.html,
+    ).toContain('<mark class="share-diff-ins">metrics</mark>');
+  });
+
+  it("the two modes never disagree about whether anything changed", async () => {
+    for (const [archived, live] of [
+      [CRLF, LF],
+      [CR, LF],
+      [CRLF, CRLF.replace("Thresholds", "Threshold policy")],
+    ] as const) {
+      const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
+      const blocksChanged =
+        diff.stats.added + diff.stats.removed + diff.stats.changed > 0;
+      expect(diff.source.length > 0).toBe(blocksChanged);
+    }
+  });
+});
