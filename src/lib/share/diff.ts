@@ -357,8 +357,11 @@ type Op =
  * paragraph promoted to a heading is not.
  */
 function blockOps(oldBlocks: SourceBlock[], newBlocks: SourceBlock[]): Op[] {
+  // The kind is part of the key, so a paragraph promoted to a heading reads
+  // as a change rather than a coincidence. One space is delimiter enough:
+  // no kind contains one, and the normalised text never starts with one.
   const key = (block: SourceBlock) =>
-    `${block.kind} ${block.text.replace(/\s+/g, " ").trim()}`;
+    `${block.kind} ${block.text.replace(/\s+/g, " ").trim()}`;
   const parts = diffArrays(oldBlocks.map(key), newBlocks.map(key));
 
   const ops: Op[] = [];

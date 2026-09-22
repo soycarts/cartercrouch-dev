@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { documentDiff, isEmptyDiff, renderedDiff, sourceHunks, wordMarks } from "../diff";
-import { renderDocument, splitBlocks, topLevelBlocks } from "../markdown";
+import { renderDocument, splitBlocks, stringifyDecorated, topLevelBlocks } from "../markdown";
 
 const ROOT = path.resolve(__dirname, "../../../..");
 const fixture = (name: string) => readFileSync(path.join(ROOT, "fixtures", name), "utf8");
@@ -342,4 +342,64 @@ describe("block boundaries agree with the renderer's", () => {
       expect(headings.length).toBeGreaterThanOrEqual(h2s.length);
     });
   }
+});
+
+/* ---------------------------------------------------------------------------
+   Regressions found by the adversarial review of this branch. Each test is
+   the reproduction first, the fix second.
+   --------------------------------------------------------------------------- */
+
+describe("F10: the source file is text", () => {
+  it("has no control bytes in diff.ts", () => {
+    const source = readFileSync(path.join(ROOT, "src/lib/share/diff.ts"));
+    const control = [...source].filter((b) => b < 9 || (b > 13 && b < 32));
+    expect(control).toEqual([]);
+  });
+});
+
+describe("F11: the second sanitizer pass names its class values", () => {
+  it("keeps the four the diff emits and drops anything else", async () => {
+    // Straight at the seam: a tree carrying class names the diff never
+    // emits, through the same stringifier the rendered diff uses.
+    const html = stringifyDecorated([
+      {
+        type: "element",
+        tagName: "p",
+        properties: { className: ["share-diff-plain", "absolute", "inset-0"] },
+        children: [{ type: "text", value: "text" }],
+      },
+      {
+        type: "element",
+        tagName: "mark",
+        properties: { className: ["share-diff-ins", "fixed"] },
+        children: [{ type: "text", value: "word" }],
+      },
+      {
+        type: "element",
+        tagName: "div",
+        properties: { className: ["table-scroll", "opacity-0"] },
+        children: [],
+      },
+      {
+        type: "element",
+        tagName: "span",
+        properties: { className: ["anything"] },
+        children: [{ type: "text", value: "span" }],
+      },
+    ]);
+    expect(html).toBe(
+      '<p class="share-diff-plain">text</p>' +
+        '<mark class="share-diff-ins">word</mark>' +
+        '<div class="table-scroll"></div>' +
+        "<span>span</span>",
+    );
+  });
+
+  it("emits no class the schema does not name", async () => {
+    const { blocks } = await renderedDiff("| a |\n|---|\n| 1 |\n", "| a |\n|---|\n| 2 |\n");
+    const classes = new Set(
+      [...blocks.map((b) => b.html).join("\n").matchAll(/class="([^"]*)"/g)].map((m) => m[1]),
+    );
+    expect([...classes]).toEqual(["table-scroll"]);
+  });
 });

@@ -23,8 +23,8 @@ const schema = {
 };
 
 /**
- * The same filter, plus the three tags the diff renderer wraps changed words
- * in and the class attribute its wrappers carry.
+ * The same filter, plus `<mark>` and the four class names the diff renderer's
+ * own wrappers carry.
  *
  * It exists so that every string the diff emits has been through
  * rehype-sanitize — including the nodes the renderer builds itself. Allowing
@@ -36,7 +36,6 @@ const schema = {
  * and a second pass would prefix it twice.
  */
 const baseAttributes = (schema.attributes ?? {}) as Record<string, unknown[]>;
-const withClass = (tag: string) => [...(baseAttributes[tag] ?? []), "className"];
 /** rehype-sanitize's own option type, without importing its transitive dep. */
 type SanitizeSchema = NonNullable<Parameters<typeof rehypeSanitize>[0]>;
 
@@ -44,15 +43,18 @@ const decoratedSchema: SanitizeSchema = {
   ...schema,
   clobber: [],
   clobberPrefix: "",
-  tagNames: [...(schema.tagNames ?? []), "mark", "del", "ins"],
+  // `del` and `ins` are in the GitHub schema already; `mark` is not.
+  tagNames: [...(schema.tagNames ?? []), "mark"],
   attributes: {
     ...baseAttributes,
-    div: withClass("div"),
-    p: withClass("p"),
-    span: withClass("span"),
-    mark: ["className"],
-    del: ["className"],
-    ins: ["className"],
+    // Each class is named, not merely permitted: the tuple form allows the
+    // attribute *with these values only*. The diff emits exactly these four,
+    // so anything else in a class attribute — including one that somehow
+    // survived the first pass — is dropped here.
+    div: [...(baseAttributes.div ?? []), ["className", "table-scroll"]],
+    p: [...(baseAttributes.p ?? []), ["className", "share-diff-plain"]],
+    mark: [["className", "share-diff-ins"]],
+    del: [...(baseAttributes.del ?? []), ["className", "share-diff-del"]],
   },
 } as SanitizeSchema;
 
