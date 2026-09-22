@@ -103,6 +103,14 @@ const MIN_SIMILARITY = 0.3;
  *  to read than a disclosure triangle. */
 const COLLAPSE_OVER = 3;
 
+/** How much of the shorter side must survive for two blocks to be one block
+ *  rewritten rather than a removal and an unrelated addition. */
+const MIN_PAIR_SIMILARITY = 0.5;
+
+/** How far from its own position a removal looks for the addition that
+ *  replaced it. */
+const PAIR_WINDOW = 8;
+
 /** Collapse runs that touch or overlap, so one word is one mark. */
 function mergeRuns(runs: Run[]): Run[] {
   const out: Run[] = [];
@@ -335,21 +343,41 @@ function dedent(text: string): string {
     .join("\n");
 }
 
-/** One block as sanitized HTML, with the changed words marked if asked. */
-async function blockHtml(
-  block: SourceBlock,
-  marks?: Run[],
-  tagName?: "mark" | "del",
-): Promise<string> {
+/**
+ * A block, parsed once.
+ *
+ * The similarity score, the word marks and the HTML all need the same view
+ * of the same block. Parsing it once and passing this around is not only
+ * cheaper — four parses per pair was the single largest cost in the rendered
+ * diff — it also guarantees that the offsets the marks are measured in are
+ * offsets into the tree they are applied to.
+ */
+type ParsedBlock = {
+  block: SourceBlock;
+  nodes: RootContent[];
+  /** Every text node's value, concatenated: what the marks index into. */
+  text: string;
+};
+
+async function parseBlock(block: SourceBlock): Promise<ParsedBlock> {
   const tree = await toSanitizedTree(dedent(block.text));
   const nodes = tree.children as RootContent[];
   stripIds(nodes);
+  return { block, nodes, text: plainText(nodes) };
+}
+
+/** One parsed block as sanitized HTML, with the changed words marked if
+ *  asked. Each parsed block is rendered exactly once, which is what makes it
+ *  safe for applyMarks to decorate its nodes in place. */
+function blockHtml(parsed: ParsedBlock, marks?: Run[], tagName?: "mark" | "del"): string {
   const decorated =
-    marks && marks.length > 0 && tagName ? applyMarks(nodes, marks, tagName) : nodes;
+    marks && marks.length > 0 && tagName
+      ? applyMarks(parsed.nodes, marks, tagName)
+      : parsed.nodes;
   const html = stringifyDecorated(decorated);
   // Raw HTML and comments render to nothing; show the source so a change to
   // one is not an invisible change.
-  return html.trim() === "" ? stringifyPlainBlock(block.text) : html;
+  return html.trim() === "" ? stringifyPlainBlock(parsed.block.text) : html;
 }
 
 /**
@@ -361,6 +389,65 @@ async function blockHtml(
  */
 async function sliceHtml(source: string[], from: SourceBlock, to: SourceBlock): Promise<string> {
   return renderHtml(source.slice(from.startLine - 1, to.endLine).join("\n"));
+}
+
+/**
+ * How much of the shorter side survives a rewrite, 0 to 1.
+ *
+ * Counted in non-whitespace characters, against the shorter side, so that a
+ * sentence expanded into a paragraph still counts as the same block having
+ * grown rather than as two unrelated blocks.
+ */
+export function similarity(oldText: string, newText: string): number {
+  if (!oldText.trim() || !newText.trim()) return 0;
+  let kept = 0;
+  for (const part of diffWordsWithSpace(oldText, newText)) {
+    if (!part.added && !part.removed) kept += part.value.replace(/\s+/g, "").length;
+  }
+  const shorter = Math.min(
+    oldText.replace(/\s+/g, "").length,
+    newText.replace(/\s+/g, "").length,
+  );
+  return shorter === 0 ? 0 : kept / shorter;
+}
+
+/**
+ * Which removed block each added block rewrote.
+ *
+ * Pairing the first removal with the first addition is wrong as soon as one
+ * of the removals was a removal and nothing else: deleting a bullet and
+ * editing the next one reported the deleted bullet's words as having turned
+ * into the edited one's — a sentence nobody wrote, presented as a tracked
+ * change. So: score every candidate of the same kind, take the best pairs
+ * first, and require half of the shorter side to survive before calling two
+ * blocks the same block at all.
+ *
+ * Candidates are limited to a window around each removal's position. Edits
+ * are local — a rewrite does not travel twenty blocks down the document —
+ * and the window is what keeps the scoring from being quadratic in the size
+ * of the run.
+ */
+function pairBySimilarity(dels: ParsedBlock[], adds: ParsedBlock[]): Map<number, number> {
+  const candidates: { score: number; del: number; add: number }[] = [];
+  for (let d = 0; d < dels.length; d += 1) {
+    const from = Math.max(0, d - PAIR_WINDOW);
+    const to = Math.min(adds.length, d + PAIR_WINDOW + 1);
+    for (let a = from; a < to; a += 1) {
+      if (dels[d].block.kind !== adds[a].block.kind) continue;
+      const score = similarity(dels[d].text, adds[a].text);
+      if (score >= MIN_PAIR_SIMILARITY) candidates.push({ score, del: d, add: a });
+    }
+  }
+  candidates.sort((x, y) => y.score - x.score || x.del - y.del || x.add - y.add);
+
+  const pairs = new Map<number, number>();
+  const taken = new Set<number>();
+  for (const candidate of candidates) {
+    if (pairs.has(candidate.del) || taken.has(candidate.add)) continue;
+    pairs.set(candidate.del, candidate.add);
+    taken.add(candidate.add);
+  }
+  return pairs;
 }
 
 type Op =
@@ -452,59 +539,45 @@ export async function renderedDiff(
       continue;
     }
 
-    // A removal followed by an addition is a rewrite. Pair each removed
-    // block with the first added block of the same kind — by kind rather
-    // than by position, because one bullet added in the middle of the run
-    // shifts every later block and would otherwise report a table
-    // "changed into" a list item. Whatever is left over is a plain removal
-    // or a plain addition, shown after the pairs.
-    const paired = op.kind === "del" && ops[i + 1]?.kind === "add" ? ops[i + 1].blocks : [];
-    if (paired.length > 0) {
-      const dels = op.blocks;
-      const adds = paired;
-      const taken = new Set<number>();
-      const loneDels: DiffBlock[] = [];
+    // A removal followed by an addition is a rewrite of some of these
+    // blocks and an outright change to the rest. Pair what belongs
+    // together, then emit in the archived draft's own order: each removal
+    // where it stood, its replacement immediately after it, and the
+    // additions that replaced nothing at the end of the run.
+    const addOp = op.kind === "del" && ops[i + 1]?.kind === "add" ? ops[i + 1] : null;
+    if (addOp) {
+      const dels = await Promise.all(op.blocks.map(parseBlock));
+      const adds = await Promise.all(addOp.blocks.map(parseBlock));
+      const pairs = pairBySimilarity(dels, adds);
 
-      for (const del of dels) {
-        const match = adds.findIndex((add, n) => !taken.has(n) && add.kind === del.kind);
-        if (match === -1) {
-          loneDels.push({ kind: "del", html: await blockHtml(del) });
+      for (let d = 0; d < dels.length; d += 1) {
+        const a = pairs.get(d);
+        if (a === undefined) {
+          out.push({ kind: "del", html: blockHtml(dels[d]) });
           stats.removed += 1;
           continue;
         }
-        taken.add(match);
-        const add = adds[match];
-        let delMarks: Run[] | undefined;
-        let addMarks: Run[] | undefined;
-        if (marksAllowed(del)) {
-          const delTree = await toSanitizedTree(dedent(del.text));
-          const addTree = await toSanitizedTree(dedent(add.text));
-          const marks = wordMarks(
-            plainText(delTree.children as RootContent[]),
-            plainText(addTree.children as RootContent[]),
-          );
-          if (marks) {
-            delMarks = marks.del;
-            addMarks = marks.add;
-          }
-        }
-        out.push({ kind: "del", html: await blockHtml(del, delMarks, "del") });
-        out.push({ kind: "add", html: await blockHtml(add, addMarks, "mark") });
+        const marks = marksAllowed(dels[d].block)
+          ? wordMarks(dels[d].text, adds[a].text)
+          : null;
+        out.push({ kind: "del", html: blockHtml(dels[d], marks?.del, "del") });
+        out.push({ kind: "add", html: blockHtml(adds[a], marks?.add, "mark") });
         stats.changed += 1;
       }
 
-      out.push(...loneDels);
-      for (let n = 0; n < adds.length; n += 1) {
-        if (taken.has(n)) continue;
-        out.push({ kind: "add", html: await blockHtml(adds[n]) });
+      const taken = new Set(pairs.values());
+      for (let a = 0; a < adds.length; a += 1) {
+        if (taken.has(a)) continue;
+        out.push({ kind: "add", html: blockHtml(adds[a]) });
         stats.added += 1;
       }
+
       i += 1; // the paired addition is done
       continue;
     }
 
     for (const block of op.blocks) {
-      out.push({ kind: op.kind, html: await blockHtml(block) });
+      out.push({ kind: op.kind, html: blockHtml(await parseBlock(block)) });
       if (op.kind === "add") stats.added += 1;
       else stats.removed += 1;
     }

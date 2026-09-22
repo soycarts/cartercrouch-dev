@@ -531,3 +531,90 @@ describe("F6, F7, F8: the Markdown mode is a patch", () => {
     expect(source.hunks[0].lines.filter((l) => l.kind === "note")).toHaveLength(1);
   });
 });
+
+describe("F3: a rewrite is paired with the block it rewrote", () => {
+  // The refuter's case. Two bullets in, one out: the *outcome* bullet was
+  // deleted outright, and the *intention* bullet had Goa → Mandrem. Pairing
+  // the first removal with the first addition marked "outcome → intention",
+  // which is a sentence nobody wrote.
+  const archived = [
+    "## Acceptance",
+    "",
+    "- Verify the outcome counts for the Goa cohort",
+    "- Verify the intention counts for the Goa cohort",
+    "",
+    "Signed off by research.",
+    "",
+  ].join("\n");
+  const live = [
+    "## Acceptance",
+    "",
+    "- Verify the intention counts for the Mandrem cohort",
+    "",
+    "Signed off by research.",
+    "",
+  ].join("\n");
+
+  it("pairs by similarity, not by position", async () => {
+    const { blocks, stats } = await renderedDiff(archived, live);
+    expect(stats).toEqual({ added: 0, removed: 1, changed: 1 });
+
+    const del = blocks.filter((b) => b.kind === "del");
+    const add = blocks.filter((b) => b.kind === "add");
+    expect(add).toHaveLength(1);
+    expect(del).toHaveLength(2);
+
+    // The pair is the intention bullet, and the only marked word is the
+    // cohort's name.
+    const paired = del.find((b) => b.html.includes("share-diff-del"))!;
+    expect(paired.html).toContain("intention");
+    expect(paired.html).toContain('<del class="share-diff-del">Goa</del>');
+    expect(paired.html).not.toContain('<del class="share-diff-del">outcome</del>');
+    expect(add[0].html).toContain('<mark class="share-diff-ins">Mandrem</mark>');
+    expect(add[0].html).not.toContain('<mark class="share-diff-ins">intention</mark>');
+
+    // The outcome bullet is a plain removal, unmarked.
+    const lone = del.find((b) => !b.html.includes("share-diff-del"))!;
+    expect(lone.html).toContain("outcome");
+  });
+
+  it("emits the removals in document order, each pair together", async () => {
+    const { blocks } = await renderedDiff(archived, live);
+    const shape = blocks
+      .filter((b) => b.kind === "del" || b.kind === "add")
+      .map((b) => `${b.kind}:${/outcome/.test(b.html) ? "outcome" : "intention"}`);
+    // Outcome came first in the archived draft and comes first here; the
+    // intention bullet's replacement follows it immediately.
+    expect(shape).toEqual(["del:outcome", "del:intention", "add:intention"]);
+  });
+
+  it("does not pair two unrelated blocks as an edit", async () => {
+    const { stats } = await renderedDiff(
+      "intro\n\nThe quarterly target is forty million.\n\noutro\n",
+      "intro\n\nA sentence about something else entirely.\n\noutro\n",
+    );
+    expect(stats).toEqual({ added: 1, removed: 1, changed: 0 });
+  });
+
+  it("still pairs a near-identical rewrite", async () => {
+    const { stats, blocks } = await renderedDiff(
+      "intro\n\nThe quarterly revenue target is forty million dollars.\n\noutro\n",
+      "intro\n\nThe quarterly revenue target is fourteen million dollars.\n\noutro\n",
+    );
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1 });
+    expect(blocks.find((b) => b.kind === "add")!.html).toContain(
+      '<mark class="share-diff-ins">fourteen</mark>',
+    );
+  });
+
+  it("keeps two independent edits apart", async () => {
+    const { blocks, stats } = await renderedDiff(
+      "para about alpha and the first topic\n\npara about beta and the second topic\n",
+      "para about alpha and the first topic now\n\npara about beta and the second topic too\n",
+    );
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 2 });
+    const adds = blocks.filter((b) => b.kind === "add");
+    expect(adds[0].html).toContain("alpha");
+    expect(adds[1].html).toContain("beta");
+  });
+});

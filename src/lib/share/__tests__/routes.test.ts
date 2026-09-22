@@ -362,9 +362,11 @@ describe("the diff query parameter", () => {
         method: "POST",
         headers,
         body: JSON.stringify({
-          markdown: "# Diff doc\n\nOne.\n",
+          markdown: "# Diff doc\n\nThe first paragraph of the first draft.\n",
           version: "1.0",
-          attachments: [{ name: "spec.md", markdown: "# Spec\n\nOld.\n" }],
+          attachments: [
+            { name: "spec.md", markdown: "# Spec\n\nEvery event carries an id.\n" },
+          ],
         }),
       }),
     );
@@ -375,10 +377,12 @@ describe("the diff query parameter", () => {
         method: "PUT",
         headers,
         body: JSON.stringify({
-          markdown: "# Diff doc\n\nTwo.\n",
+          markdown: "# Diff doc\n\nThe first paragraph of the second draft.\n",
           version: "1.1",
           previousVersion: "1.0",
-          attachments: [{ name: "spec.md", markdown: "# Spec\n\nNew.\n" }],
+          attachments: [
+            { name: "spec.md", markdown: "# Spec\n\nEvery event carries an id and a tenant.\n" },
+          ],
         }),
       }),
       { params: Promise.resolve({ id }) },

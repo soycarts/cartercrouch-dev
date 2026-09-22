@@ -199,12 +199,12 @@ describe("the diff an archived page carries", () => {
   it("is computed from the two blobs the page already reads", async () => {
     const store = new CountingStore();
     const doc = await publishDocument(store, {
-      markdown: "# Doc\n\nOne.\n",
+      markdown: "# Doc\n\nThe collector writes one event per intention.\n",
       version: "1.0",
       attachments: [SPEC],
     });
     await updateDocument(store, doc.id, {
-      markdown: "# Doc\n\nTwo.\n",
+      markdown: "# Doc\n\nThe collector writes every event per intention.\n",
       version: "1.1",
       attachments: [SPEC],
     });
@@ -221,8 +221,12 @@ describe("the diff an archived page carries", () => {
     expect(diff!.liveLabel).toBe("1.1");
     expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 1 });
     expect(diff!.note).toBeNull();
-    expect(diff!.rendered.some((b) => b.kind === "del" && b.html.includes("One"))).toBe(true);
-    expect(diff!.rendered.some((b) => b.kind === "add" && b.html.includes("Two"))).toBe(true);
+    expect(
+      diff!.rendered.some((b) => b.kind === "del" && b.html.includes("share-diff-del")),
+    ).toBe(true);
+    expect(
+      diff!.rendered.some((b) => b.kind === "add" && b.html.includes("every")),
+    ).toBe(true);
   });
 
   it("is absent on the current draft", async () => {
