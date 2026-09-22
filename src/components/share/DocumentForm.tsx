@@ -13,6 +13,8 @@ export function DocumentForm({
   id,
   initialMarkdown = "",
   initialFilename = "",
+  initialVersion = "",
+  requireVersion = false,
   initialAttachments = [],
   submitLabel,
 }: {
@@ -20,6 +22,10 @@ export function DocumentForm({
   id?: string;
   initialMarkdown?: string;
   initialFilename?: string;
+  /** The draft this document is on; empty for one published before drafts. */
+  initialVersion?: string;
+  /** Once a document has a label, every save has to name one. */
+  requireVersion?: boolean;
   initialAttachments?: Attachment[];
   submitLabel: string;
 }) {
@@ -27,6 +33,7 @@ export function DocumentForm({
   const [markdown, setMarkdown] = useState(state.markdown ?? initialMarkdown);
   const [attachments, setAttachments] = useState<Attachment[]>(initialAttachments);
   const [filename, setFilename] = useState(initialFilename);
+  const [version, setVersion] = useState(initialVersion);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewing, startPreview] = useTransition();
 
@@ -90,6 +97,29 @@ export function DocumentForm({
         pattern="[A-Za-z0-9][A-Za-z0-9._ \-]{0,78}\.md"
         className="share-field mt-2 max-w-md"
       />
+
+      {/* Saving with the label that is already there edits this draft;
+          changing it archives the current one at a URL of its own. The
+          field is prefilled, so the quiet path is the in-place edit. */}
+      <label htmlFor="version" className="kicker mt-8 block text-ink-muted">
+        Draft
+      </label>
+      <input
+        id="version"
+        name="version"
+        value={version}
+        onChange={(e) => setVersion(e.target.value)}
+        required={requireVersion}
+        placeholder={requireVersion ? "1.1" : "leave blank to keep this draft unlabelled"}
+        pattern="[0-9A-Za-z]+(\.[0-9A-Za-z]+)*"
+        title="Letters and digits in dot-separated groups, e.g. 1.0"
+        className="share-field mt-2 max-w-md"
+      />
+      <p className="kicker mt-2 text-ink-muted">
+        {version && version !== initialVersion
+          ? `Saving archives draft ${initialVersion || "the current one"} at its own URL.`
+          : "Saving with the same label edits this draft in place."}
+      </p>
 
       <div className="mt-8 flex flex-wrap items-baseline justify-between gap-4">
         <span className="kicker text-ink-muted">Files</span>

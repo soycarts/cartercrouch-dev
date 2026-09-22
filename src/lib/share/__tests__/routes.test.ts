@@ -175,3 +175,168 @@ describe("update route", () => {
     expect(await served.text()).toBe("# Second title\n\nReplaced.\n");
   });
 });
+
+describe("draft routes", () => {
+  let id: string;
+  let PUT: typeof import("@/app/share/api/share/[id]/route").PUT;
+
+  const put = (body: unknown) =>
+    PUT(
+      new Request(`http://x/api/share/${id}`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+  beforeAll(async () => {
+    ({ PUT } = await import("@/app/share/api/share/[id]/route"));
+    const { POST } = await import("@/app/share/api/share/route");
+    const res = await POST(
+      new Request("http://x/api/share", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          markdown: "# Doc\n\ndraft one\n",
+          version: "1.0",
+          attachments: [{ name: "spec.md", markdown: "# Spec one\n" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.version).toBe("1.0");
+    expect(body.versions).toEqual([]);
+    id = body.id;
+  });
+
+  it("returns every draft's URLs after a bump", async () => {
+    const res = await put({
+      markdown: "# Doc\n\ndraft two\n",
+      version: "1.1",
+      attachments: [{ name: "spec.md", markdown: "# Spec two\n" }],
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.version).toBe("1.1");
+    expect(body.versions).toEqual([
+      {
+        version: "1.0",
+        slug: "draft1_0",
+        url: `https://share.carter.md/${id}/draft1_0`,
+        markdownUrl: `https://share.carter.md/${id}/draft1_0.md`,
+        pdfUrl: `https://share.carter.md/${id}/draft1_0.pdf`,
+      },
+    ]);
+  });
+
+  it("serves the archived bytes at /:id/:version.md", async () => {
+    const { GET } = await import("@/app/share/[id]/[version]/md/route");
+    const res = await GET(new Request("http://x/"), {
+      params: Promise.resolve({ id, version: "draft1_0" }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+    expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(await res.text()).toBe("# Doc\n\ndraft one\n");
+
+    // An archived download says which draft it is, so it cannot be confused
+    // with the current one in a downloads folder.
+    const download = await GET(new Request("http://x/?download=1"), {
+      params: Promise.resolve({ id, version: "draft1_0" }),
+    });
+    expect(download.headers.get("content-disposition")).toBe(
+      'attachment; filename="doc-draft1_0.md"',
+    );
+
+    const { GET: file } = await import("@/app/share/[id]/[version]/files/[name]/route");
+    const fileDownload = await file(new Request("http://x/?download=1"), {
+      params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+    });
+    expect(fileDownload.headers.get("content-disposition")).toBe(
+      'attachment; filename="spec-draft1_0.md"',
+    );
+  });
+
+  it("serves that draft's own copy of a context file", async () => {
+    const { GET } = await import("@/app/share/[id]/[version]/files/[name]/route");
+    const archived = await GET(new Request("http://x/"), {
+      params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+    });
+    expect(await archived.text()).toBe("# Spec one\n");
+
+    const { GET: currentFile } = await import("@/app/share/[id]/files/[name]/route");
+    const live = await currentFile(new Request("http://x/"), {
+      params: Promise.resolve({ id, name: "spec.md" }),
+    });
+    expect(await live.text()).toBe("# Spec two\n");
+  });
+
+  it("404s an unknown, malformed, or reserved slug the same way", async () => {
+    const { GET } = await import("@/app/share/[id]/[version]/md/route");
+    const { GET: file } = await import("@/app/share/[id]/[version]/files/[name]/route");
+    for (const version of ["draft9_9", "files", "md", "pdf", "not-a-draft"]) {
+      const res = await GET(new Request("http://x/"), {
+        params: Promise.resolve({ id, version }),
+      });
+      expect(res.status).toBe(404);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(await res.text()).toBe("Document not found.\n");
+    }
+    const missingFile = await file(new Request("http://x/"), {
+      params: Promise.resolve({ id, version: "draft1_0", name: "nope.md" }),
+    });
+    expect(missingFile.status).toBe(404);
+  });
+
+  it("hides every draft once the document is revoked", async () => {
+    const { GET } = await import("@/app/share/[id]/[version]/md/route");
+    const { getStore, setRevoked } = await import("@/lib/share");
+    await setRevoked(getStore(), id, true);
+    const res = await GET(new Request("http://x/"), {
+      params: Promise.resolve({ id, version: "draft1_0" }),
+    });
+    expect(res.status).toBe(404);
+    await setRevoked(getStore(), id, false);
+    expect(
+      (await GET(new Request("http://x/"), { params: Promise.resolve({ id, version: "draft1_0" }) }))
+        .status,
+    ).toBe(200);
+  });
+
+  it("rejects a bump the store cannot file, with the store's own status", async () => {
+    const { POST } = await import("@/app/share/api/share/route");
+    const res = await POST(
+      new Request("http://x/api/share", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ markdown: "# Bare\n\nno marker\n" }),
+      }),
+    );
+    const bare = (await res.json()).id;
+    const PUT2 = PUT;
+    const bumped = await PUT2(
+      new Request(`http://x/api/share/${bare}`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ markdown: "# Bare\n\nnext\n", version: "1.1" }),
+      }),
+      { params: Promise.resolve({ id: bare }) },
+    );
+    expect(bumped.status).toBe(400);
+    expect((await bumped.json()).error).toMatch(/previousVersion/);
+  });
+});

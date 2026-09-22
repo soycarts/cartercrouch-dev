@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { RenderedSection } from "@/lib/share/markdown";
 import { Prose } from "./Prose";
 import { ReaderControls } from "./ReaderControls";
+import { VersionMenu, type VersionOption } from "./VersionMenu";
 
 export type ViewerDocument = {
   /** Sections for the styled reader (sanitized HTML). */
@@ -126,12 +127,17 @@ export function DocumentViewer({
   compact = false,
   title = null,
   aside = null,
+  versionLabel = null,
+  versions = [],
 }: {
   doc: ViewerDocument;
   initialView?: View;
   compact?: boolean;
   /** The lifted H1, for the popup — the main page prints its own. */
   title?: string | null;
+  /** The draft being shown, and every draft to choose between. */
+  versionLabel?: string | null;
+  versions?: VersionOption[];
   /** Side pane (file tree, contents). The bar spans the full width above
    *  both pane and body, so it has the whole measure to stay on one row. */
   aside?: React.ReactNode;
@@ -163,6 +169,12 @@ export function DocumentViewer({
         <div className="share-toggle" role="tablist">
           {tab("reader", "Reader")}
           {tab("markdown", "Markdown")}
+          {/* Drafts belong to the document, not to one attachment inside a
+              popup — the popup's bar leaves the menu out, as it does the
+              reader controls. */}
+          {!compact && versionLabel && versions.length > 0 && (
+            <VersionMenu label={versionLabel} versions={versions} />
+          )}
         </div>
         <div className="share-actions">
           <ActionButton label="Copy formatted" onClick={() => copyFormatted(doc.html, doc.markdown)} />

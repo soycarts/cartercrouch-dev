@@ -6,17 +6,27 @@
 // Or replace a document that is already published, keeping its URL — the
 // context files are replaced wholesale too, so pass every one you still want:
 //
-//   npm run share -- --update <id> design.md spec.md strategy.md
-//   npm run share -- --update=<id> design.md
+//   npm run share -- --update <id> --version 1.1 design.md spec.md
+//   npm run share -- --update=<id> --same-version design.md
+//
+// An update has to say which it is. `--version <label>` publishes a new
+// draft and archives the one it replaces at a URL of its own;
+// `--same-version` edits the draft that is already there. If the stored
+// document predates draft labels and does not carry a "Draft: X" line,
+// `--previous-version <label>` says what to file it under.
 //
 // Reads SHARE_OWNER_TOKEN (and optionally SHARE_API_ORIGIN) from the
-// environment or .env.local, and prints the same three URLs either way.
+// environment or .env.local, and prints the same three URLs either way,
+// followed by the URL of every archived draft.
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
 
-const USAGE =
-  "usage: npm run share -- [--update <id>] <document.md> [context.md ...]";
+const USAGE = [
+  "usage: npm run share -- [--version <label>] <document.md> [context.md ...]",
+  "       npm run share -- --update <id> (--version <label> | --same-version) \\",
+  "                        [--previous-version <label>] <document.md> [context.md ...]",
+].join("\n");
 
 async function loadDotEnv() {
   const path = resolve(process.cwd(), ".env.local");
@@ -27,28 +37,74 @@ async function loadDotEnv() {
   }
 }
 
-/** Pull `--update <id>` / `--update=<id>` out of the argument list. */
-function parseArgs(argv: string[]): { id: string | null; files: string[] } {
+type Args = {
+  id: string | null;
+  version: string | null;
+  previousVersion: string | null;
+  sameVersion: boolean;
+  /** An `--update`/`--version`/`--previous-version` that was given no value. */
+  incomplete: boolean;
+  files: string[];
+};
+
+/** Pull the flags — each accepting `--flag value` or `--flag=value` — out. */
+function parseArgs(argv: string[]): Args {
   const files: string[] = [];
-  let id: string | null = null;
+  const values: Record<string, string | null> = {
+    "--update": null,
+    "--version": null,
+    "--previous-version": null,
+  };
+  let sameVersion = false;
+  let incomplete = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--update") {
-      id = argv[i + 1] ?? null;
-      i += 1;
-    } else if (arg.startsWith("--update=")) {
-      id = arg.slice("--update=".length);
-    } else {
-      files.push(arg);
+    if (arg === "--same-version") {
+      sameVersion = true;
+      continue;
     }
+    const name = Object.keys(values).find((f) => arg === f || arg.startsWith(`${f}=`));
+    if (!name) {
+      files.push(arg);
+      continue;
+    }
+    const value = arg === name ? (argv[i + 1] ?? "") : arg.slice(name.length + 1);
+    if (arg === name) i += 1;
+    // A flag that swallowed the next flag, or the document itself: a label
+    // ending in .md is a filename that lost its place, never a draft name.
+    if (!value || value.startsWith("--") || value.endsWith(".md")) incomplete = true;
+    values[name] = value || null;
   }
-  return { id: id || null, files };
+  return {
+    id: values["--update"],
+    version: values["--version"],
+    previousVersion: values["--previous-version"],
+    sameVersion,
+    incomplete,
+    files,
+  };
 }
 
 async function main() {
-  const { id, files } = parseArgs(process.argv.slice(2));
+  const { id, version, previousVersion, sameVersion, incomplete, files } = parseArgs(
+    process.argv.slice(2),
+  );
   const [file, ...extra] = files;
-  if (!file || (process.argv.includes("--update") && !id)) {
+  // An update that says nothing about the draft is the one dangerous case:
+  // it used to be the only case, and it silently replaced whatever was
+  // there. Say which you mean — and only one thing, since a command that
+  // contradicts itself should not get to pick which half to obey.
+  const complaint = !file
+    ? null
+    : id && !version && !sameVersion
+      ? "An update needs --version <label> or --same-version."
+      : version && sameVersion
+        ? "--version and --same-version say opposite things; pass one."
+        : !id && previousVersion
+          ? "--previous-version only means something with --update."
+          : null;
+  if (!file || incomplete || complaint) {
+    if (complaint) console.error(complaint + "\n");
     console.error(USAGE);
     process.exit(2);
   }
@@ -66,16 +122,39 @@ async function main() {
   const res = await fetch(id ? `${origin}/api/share/${id}` : `${origin}/api/share`, {
     method: id ? "PUT" : "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ markdown, filename: basename(file), attachments }),
+    body: JSON.stringify({
+      markdown,
+      filename: basename(file),
+      attachments,
+      // --same-version is the absence of a label, which the API reads as
+      // "leave the draft where it is".
+      ...(version ? { version } : {}),
+      ...(previousVersion ? { previousVersion } : {}),
+    }),
   });
-  const body = (await res.json()) as Record<string, string>;
+  const body = (await res.json()) as Record<string, unknown> & {
+    url: string;
+    markdownUrl: string;
+    pdfUrl: string;
+    error?: string;
+  };
   if (!res.ok) {
     const what = id ? "Update" : "Publish";
     console.error(`${what} failed (${res.status}): ${body.error ?? "unknown error"}`);
     process.exit(1);
   }
   const what = id ? "Updated" : "Published";
-  console.log(`${what} ✓\n\n${body.url}\n${body.markdownUrl}\n${body.pdfUrl}`);
+  const draft = typeof body.version === "string" ? ` — draft ${body.version}` : "";
+  // Newest first, under the three URLs that always point at the current draft.
+  const archived = (body.versions ?? []) as { version: string; url: string }[];
+  const history = archived.length
+    ? "\n\n" +
+      [...archived]
+        .reverse()
+        .map((v) => `draft ${v.version}  ${v.url}`)
+        .join("\n")
+    : "";
+  console.log(`${what} ✓${draft}\n\n${body.url}\n${body.markdownUrl}\n${body.pdfUrl}${history}`);
 }
 
 main().catch((err) => {

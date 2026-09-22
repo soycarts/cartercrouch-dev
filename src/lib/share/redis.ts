@@ -8,6 +8,11 @@ import type { ShareStore, SharedDocument, SharedDocumentSummary } from "./store"
 const DOC_PREFIX = "share:doc:";
 const INDEX_KEY = "share:ids";
 
+/** Archived drafts hang off the document's own key: share:doc:<id>:v:<slug>. */
+function versionKey(id: string, slug: string): string {
+  return `${DOC_PREFIX}${id}:v:${slug}`;
+}
+
 export class RedisShareStore implements ShareStore {
   constructor(private readonly redis: Redis) {}
 
@@ -30,6 +35,17 @@ export class RedisShareStore implements ShareStore {
       this.redis.set(DOC_PREFIX + doc.id, doc),
       this.redis.sadd(INDEX_KEY, doc.id),
     ]);
+  }
+
+  async getVersion(id: string, slug: string) {
+    return (await this.redis.get<SharedDocument>(versionKey(id, slug))) ?? null;
+  }
+
+  async putVersion(id: string, slug: string, doc: SharedDocument) {
+    // Its own key, not a field on the document: the 900 KB ceiling then
+    // applies per draft rather than to the whole history at once, and the
+    // reader never fetches drafts it is not showing.
+    await this.redis.set(versionKey(id, slug), doc);
   }
 
   async list(): Promise<SharedDocumentSummary[]> {

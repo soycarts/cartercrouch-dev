@@ -827,6 +827,99 @@
     cursor: default;
   }
 
+  /* The draft menu: a tab that opens a list rather than switching a mode.
+     It lives inside the toggle beside Reader and Markdown, so the bar stays
+     one row however many drafts a document has. */
+  .share-versions {
+    position: relative;
+    display: inline-flex;
+    border-left: 1px solid var(--rule-strong);
+  }
+
+  .share-versions__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+  }
+
+  .share-versions__chevron {
+    font-size: 0.85em;
+    line-height: 1;
+  }
+
+  .share-versions__menu {
+    position: absolute;
+    top: calc(100% + 1px);
+    left: -1px;
+    z-index: 20;
+    min-width: max(100%, 11rem);
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+  }
+
+  .share-versions__item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.5rem 0.9rem;
+    color: var(--ink-muted);
+    transition: color 180ms var(--ease-out), background 180ms var(--ease-out);
+  }
+
+  .share-versions__item + .share-versions__item {
+    border-top: 1px solid var(--rule);
+  }
+
+  .share-versions__item:hover {
+    color: var(--ink);
+    background: var(--rule);
+  }
+
+  .share-versions__item.is-active {
+    color: var(--paper);
+    background: var(--ink);
+  }
+
+  .share-versions__tag {
+    font-size: 0.85em;
+    color: var(--accent);
+  }
+
+  .share-versions__item.is-active .share-versions__tag {
+    color: var(--paper);
+  }
+
+  /* The archived-draft notice, on the header's own meta line. */
+  .share-superseded {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    color: var(--ink-soft);
+  }
+
+  .share-superseded__link {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 1px;
+    transition: border-color 180ms var(--ease-out);
+  }
+
+  .share-superseded__link:hover {
+    border-color: var(--accent);
+  }
+
   /* Reader controls: theme switch and text size, travelling together. They
      take the free space on the bar so the toggle and the actions keep their
      own cluster on the left. */
@@ -1186,6 +1279,19 @@
      underline is its affordance, so it moves onto the label stack rather
      than riding 20px below the text on a taller button. */
   .share-tab {
+    padding-block: 0.85rem;
+  }
+
+  /* The toggle runs to the right edge on a phone, so a menu hung off the
+     button's left corner pushes its own right edge off-screen. Hang it off
+     the right corner instead, and never let it out-measure the viewport. */
+  .share-versions__menu {
+    left: auto;
+    right: -1px;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .share-versions__item {
     padding-block: 0.85rem;
   }
 

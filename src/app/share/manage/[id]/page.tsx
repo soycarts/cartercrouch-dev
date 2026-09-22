@@ -29,6 +29,8 @@ export default async function ManageDocumentPage({
   if (!doc) notFound();
   const base = internalBase();
   const revoked = Boolean(doc.revokedAt);
+  // Newest first, the way the reader's own draft menu lists them.
+  const versions = [...(doc.versions ?? [])].reverse();
 
   const links = [
     { label: "Reader", href: readerUrl(id) },
@@ -51,6 +53,7 @@ export default async function ManageDocumentPage({
       </h1>
       <p className="kicker mt-4 text-ink-muted">
         {revoked ? `Revoked ${formatDate(doc.revokedAt!)} · ` : ""}
+        {doc.version ? `Draft ${doc.version} · ` : ""}
         Created {formatDate(doc.createdAt)} · Updated {formatDate(doc.updatedAt)}
       </p>
 
@@ -74,6 +77,33 @@ export default async function ManageDocumentPage({
         ))}
       </div>
 
+      {versions.length > 0 && (
+        <div className="mt-8">
+          <p className="kicker text-ink-muted">
+            Archived drafts · each still served at its own URL
+          </p>
+          <div className="mt-3 border-y border-rule">
+            {versions.map((v) => (
+              <div
+                key={v.slug}
+                className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-rule py-3 last:border-b-0"
+              >
+                <span className="kicker w-16 text-ink-muted">Draft {v.version}</span>
+                <a
+                  href={readerUrl(id, v.slug)}
+                  className="min-w-0 flex-1 truncate font-mono text-[0.8rem] text-ink hover:text-accent"
+                >
+                  {readerUrl(id, v.slug)}
+                </a>
+                <span className="kicker text-ink-muted">
+                  Published {formatDate(v.publishedAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form action={revoke} className="mt-6 flex flex-wrap items-baseline gap-4">
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="revoked" value={revoked ? "0" : "1"} />
@@ -91,12 +121,17 @@ export default async function ManageDocumentPage({
       </form>
 
       <div className="mt-12 border-t border-rule pt-8">
-        <p className="kicker text-ink-muted">Edit · the share ID stays the same</p>
+        <p className="kicker text-ink-muted">
+          Edit · the share ID stays the same
+          {doc.version ? " · change the draft label to archive this one" : ""}
+        </p>
         <DocumentForm
           action={update}
           id={id}
           initialMarkdown={doc.markdown}
           initialFilename={doc.filename ?? ""}
+          initialVersion={doc.version ?? ""}
+          requireVersion={Boolean(doc.version)}
           initialAttachments={doc.attachments ?? []}
           submitLabel="Save changes"
         />

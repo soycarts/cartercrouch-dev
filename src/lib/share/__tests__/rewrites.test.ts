@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import nextConfig, { SHARE_CATCH_ALL } from "../../../../next.config";
+import nextConfig, { SHARE_CATCH_ALL, VERSION } from "../../../../next.config";
 
 // `beforeFiles` rewrites chain: each rule is re-tested against the path the
 // previous one produced. The catch-all therefore has to leave /share/* alone,
@@ -40,6 +40,43 @@ describe("share host rewrites", () => {
     }
     expect(sources.filter((s) => s.endsWith(".md")).length).toBeGreaterThan(0);
     expect(sources.filter((s) => s.endsWith(".pdf")).length).toBeGreaterThan(0);
+  });
+
+  it("routes an archived draft's suffix URLs without re-rewriting them", async () => {
+    const { beforeFiles } = (await nextConfig.rewrites!()) as {
+      beforeFiles: { source: string; destination: string }[];
+    };
+    const sources = beforeFiles.map((r) => r.source);
+    const catchAllIndex = sources.findIndex((s) => s.includes(SHARE_CATCH_ALL));
+    const versionRules = beforeFiles.filter((r) => r.source.includes(VERSION));
+    // Two on the share host, two on the /share mount.
+    expect(versionRules).toHaveLength(4);
+    for (const rule of versionRules.slice(0, 2)) {
+      expect(sources.indexOf(rule.source)).toBeLessThan(catchAllIndex);
+    }
+    // What those rules produce must be invisible to the catch-all below them,
+    // or "/:id/draft1_0.md" would come out as "/share/share/:id/draft1_0/md".
+    for (const rule of versionRules) {
+      const produced = rule.destination
+        .replace(":id", "8z43LqvaXMNSG6daneeFrh")
+        .replace(":version", "draft1_0")
+        .replace(/^\//, "");
+      expect(catchAll.test(produced)).toBe(false);
+    }
+  });
+
+  it("keeps the version pattern clear of the segments beside it", async () => {
+    const { VERSION_SLUG } = await import("../store");
+    const version = new RegExp(`^${VERSION}$`);
+    // The rewrite layer and the store must agree exactly, or a URL gets
+    // rewritten onto a route that then refuses the very slug it was given.
+    expect(VERSION).toBe(VERSION_SLUG.source.replace(/^\^/, "").replace(/\$$/, ""));
+    expect(version.test("draft1_0")).toBe(true);
+    expect(version.test("draft2_0_1rc")).toBe(true);
+    for (const reserved of ["files", "md", "pdf", "view", "draft_1", "draft1_"]) {
+      expect(version.test(reserved)).toBe(false);
+      expect(VERSION_SLUG.test(reserved)).toBe(false);
+    }
   });
 
   it("sends X-Robots-Tag on the share host, where paths are bare", async () => {

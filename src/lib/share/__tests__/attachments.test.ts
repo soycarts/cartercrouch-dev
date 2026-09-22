@@ -23,6 +23,8 @@ function fakeDoc(names: string[]): SharedDocument {
     attachments: names.map((name) => ({ name, markdown: SPEC })),
     title: "Design",
     filename: null,
+    version: null,
+    versions: [],
     createdAt: "2026-09-18T00:00:00.000Z",
     updatedAt: "2026-09-19T00:00:00.000Z",
     revokedAt: null,
@@ -158,5 +160,29 @@ describe("the attachment page's misses", () => {
     await expectNotFound(id, "SPEC.md");
     await setRevoked(getStore(), id, false);
     await expect(render(id, "SPEC.md")).resolves.toBeTruthy();
+  });
+});
+
+describe("reading a draft label off the wire", () => {
+  it("takes version and previousVersion from a JSON body only", async () => {
+    const { readDocumentInput } = await import("../input");
+    const json = await readDocumentInput(
+      new Request("http://x/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ markdown: "# D", version: "1.1", previousVersion: "1.0" }),
+      }),
+    );
+    expect(json).toMatchObject({ version: "1.1", previousVersion: "1.0" });
+
+    const raw = await readDocumentInput(
+      new Request("http://x/", {
+        method: "POST",
+        headers: { "content-type": "text/markdown" },
+        body: "# D",
+      }),
+    );
+    expect(raw.version).toBeUndefined();
+    expect(raw.previousVersion).toBeUndefined();
   });
 });

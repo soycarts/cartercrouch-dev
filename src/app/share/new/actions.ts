@@ -18,6 +18,7 @@ function inputFrom(formData: FormData): {
   markdown: string;
   attachments: unknown;
   filename: string;
+  version: string;
 } {
   let attachments: unknown = [];
   try {
@@ -29,6 +30,9 @@ function inputFrom(formData: FormData): {
     markdown: String(formData.get("markdown") ?? ""),
     attachments,
     filename: String(formData.get("filename") ?? ""),
+    // Blank means "say nothing about the draft", which the store reads as
+    // an in-place update — the same as the CLI's --same-version.
+    version: String(formData.get("version") ?? ""),
   };
 }
 
