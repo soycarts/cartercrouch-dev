@@ -8,6 +8,7 @@ import {
   pdfUrl,
   readerUrl,
   updateDocument,
+  versionLinks,
 } from "@/lib/share";
 import { readDocumentInput } from "@/lib/share/input";
 
@@ -17,10 +18,11 @@ export const dynamic = "force-dynamic";
 //   Authorization: Bearer $SHARE_OWNER_TOKEN
 //   Body: the same shapes POST /api/share takes — text/markdown (raw), or
 //         application/json {"markdown": "...", "filename": "design.md",
-//         "attachments": [{"name": "spec.md", "markdown": "..."}]}
+//         "version": "1.1", "attachments": [{"name": "spec.md", ...}]}
 // The id, its URLs, and createdAt are kept; the title is re-inferred and
 // updatedAt is stamped by the store. PATCH is the same call: the body is a
-// whole document either way.
+// whole document either way. A `version` that differs from the stored one
+// archives the outgoing draft first; the response lists every draft.
 async function replaceDocument(request: Request, params: Promise<{ id: string }>) {
   if (!verifyBearer(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,6 +49,8 @@ async function replaceDocument(request: Request, params: Promise<{ id: string }>
       url: readerUrl(doc.id),
       markdownUrl: markdownUrl(doc.id),
       pdfUrl: pdfUrl(doc.id),
+      version: doc.version,
+      versions: versionLinks(doc),
     });
   } catch (err) {
     if (err instanceof ShareError) {

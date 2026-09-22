@@ -162,3 +162,27 @@ describe("the attachment page's misses", () => {
     await expect(render(id, "SPEC.md")).resolves.toBeTruthy();
   });
 });
+
+describe("reading a draft label off the wire", () => {
+  it("takes version and previousVersion from a JSON body only", async () => {
+    const { readDocumentInput } = await import("../input");
+    const json = await readDocumentInput(
+      new Request("http://x/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ markdown: "# D", version: "1.1", previousVersion: "1.0" }),
+      }),
+    );
+    expect(json).toMatchObject({ version: "1.1", previousVersion: "1.0" });
+
+    const raw = await readDocumentInput(
+      new Request("http://x/", {
+        method: "POST",
+        headers: { "content-type": "text/markdown" },
+        body: "# D",
+      }),
+    );
+    expect(raw.version).toBeUndefined();
+    expect(raw.previousVersion).toBeUndefined();
+  });
+});

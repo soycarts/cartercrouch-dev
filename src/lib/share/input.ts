@@ -15,10 +15,16 @@ export async function readDocumentInput(request: Request): Promise<DocumentInput
     markdown?: unknown;
     attachments?: unknown;
     filename?: unknown;
+    version?: unknown;
+    previousVersion?: unknown;
   };
   return {
     markdown: body.markdown,
     attachments: body.attachments,
     filename: body.filename,
+    // A raw text/markdown body has nowhere to carry these, so a draft label
+    // is a JSON-only affordance — the same asymmetry filename already has.
+    version: body.version,
+    previousVersion: body.previousVersion,
   };
 }
