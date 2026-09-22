@@ -235,8 +235,6 @@ export function DocumentViewer({
       return;
     }
     window.history.replaceState(null, "", diffUrl(diff, view));
-    // diffUrl is derived from these; it is deliberately not a dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canDiff, hasDiff, diff, view]);
 
   const toggleDiff = () => {
@@ -324,16 +322,17 @@ export function DocumentViewer({
           {/* Right of the view toggle, boxed like the draft menu: it is not a
               third view, it is what the two views are pointed at.
 
-              "DIFF", not "DIFF VS LIVE": an archived page's bar measures
-              1158px of the 1180px measure before this control exists, so no
-              label fits on one row. The short one keeps the wrapped row as
-              small as possible, and the title, the aria-label and the
-              summary line under the bar all say which way round it is. */}
+              "DIFF", not "DIFF VS LIVE", in the same narrower padding the
+              reader controls use: with those two it is 1132px of the 1180px
+              measure at 1440, and 1128 of 1128 at 1200 — one row at both.
+              The full label is 64px wider and fits at neither. The title,
+              the aria-label and the summary line under the bar all say
+              which way round the comparison runs. */}
           {canDiff && (
             <div className="share-diffbox">
               <button
                 type="button"
-                className={`share-tab share-diff-toggle ${diff ? "is-active" : ""}`}
+                className={`share-tab share-tab--tight share-diff-toggle ${diff ? "is-active" : ""}`}
                 aria-pressed={diff}
                 aria-label="Diff vs live"
                 title="Diff vs live"
