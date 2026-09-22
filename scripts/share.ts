@@ -70,7 +70,9 @@ function parseArgs(argv: string[]): Args {
     }
     const value = arg === name ? (argv[i + 1] ?? "") : arg.slice(name.length + 1);
     if (arg === name) i += 1;
-    if (!value || value.startsWith("--")) incomplete = true;
+    // A flag that swallowed the next flag, or the document itself: a label
+    // ending in .md is a filename that lost its place, never a draft name.
+    if (!value || value.startsWith("--") || value.endsWith(".md")) incomplete = true;
     values[name] = value || null;
   }
   return {
