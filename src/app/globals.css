@@ -284,6 +284,17 @@
   --things-purple: #9e86c8;
   /* Reader body text, a notch below the site's 18px root. */
   --reader-size: 15px;
+
+  /* Diff tints. Paper-warm rather than terminal-bright: they have to sit
+     under prose without turning a paragraph into a highlighter accident.
+     --diff-*-mark is the word-level tint, a shade stronger than the block's
+     own, so a marked word reads against the tinted line around it. */
+  --diff-add: #e8f3ea;
+  --diff-add-rule: #3f8b57;
+  --diff-add-mark: #c6e7cf;
+  --diff-del: #fbeceb;
+  --diff-del-rule: #b5483f;
+  --diff-del-mark: #f6d3d0;
 }
 
 /* Dark mode is a choice the reader makes, not just a system setting: the
@@ -311,6 +322,15 @@
     --rule: #333333;
     --rule-strong: #5a5a5a;
     --accent: #4fb894;
+    /* The tints go to the dark end of the same two hues: enough to read as
+       green and red at a glance, dim enough for --ink to stay legible on
+       top of them. */
+    --diff-add: #1b2a20;
+    --diff-add-rule: #4f9d68;
+    --diff-add-mark: #2c4735;
+    --diff-del: #2c1d1c;
+    --diff-del-rule: #c4645b;
+    --diff-del-mark: #4a2a27;
   }
 }
 
@@ -328,6 +348,15 @@
     --rule: #333333;
     --rule-strong: #5a5a5a;
     --accent: #4fb894;
+    /* The tints go to the dark end of the same two hues: enough to read as
+       green and red at a glance, dim enough for --ink to stay legible on
+       top of them. */
+    --diff-add: #1b2a20;
+    --diff-add-rule: #4f9d68;
+    --diff-add-mark: #2c4735;
+    --diff-del: #2c1d1c;
+    --diff-del-rule: #c4645b;
+    --diff-del-mark: #4a2a27;
   }
 }
 
@@ -626,6 +655,171 @@
     outline: 2px solid var(--accent);
     outline-offset: 0;
   }
+
+  /* ---------------------------------------------------------------------
+     "Diff vs live". Two views of one comparison: a patch in the Markdown
+     mode, the prose itself in the Reader mode. Both read archived → live,
+     so a red line is what this draft says and a green one is what the
+     current draft says instead.
+     --------------------------------------------------------------------- */
+
+  /* The line above either mode: which way round, and how much moved. */
+  .share-diff-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 0.9rem;
+  }
+
+  .share-diff-summary__counts {
+    color: var(--ink-soft);
+  }
+
+  .share-diff-note {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--rule);
+    background: var(--paper-raised);
+  }
+
+  /* The patch. `.share-source` gives it the box and the mono measure; this
+     adds the marker column and the per-line tint. Each line is its own
+     block so the tint spans the row, and the marker is a real character in
+     the text rather than a pseudo-element, so a copy out of the box is
+     still a patch. */
+  .share-diff-source {
+    padding-inline: 0;
+  }
+
+  .share-diff-line {
+    display: block;
+    padding-inline: 1.25rem;
+  }
+
+  .share-diff-gutter {
+    color: var(--ink-muted);
+    user-select: none;
+  }
+
+  .share-diff-line.is-add {
+    background: var(--diff-add);
+    box-shadow: inset 2px 0 0 var(--diff-add-rule);
+  }
+
+  .share-diff-line.is-del {
+    background: var(--diff-del);
+    box-shadow: inset 2px 0 0 var(--diff-del-rule);
+  }
+
+  .share-diff-line.is-add .share-diff-gutter {
+    color: var(--diff-add-rule);
+  }
+
+  .share-diff-line.is-del .share-diff-gutter {
+    color: var(--diff-del-rule);
+  }
+
+  /* What was skipped between hunks, in the mono kicker voice the bar uses. */
+  .share-diff-sep {
+    display: block;
+    font-size: 0.9em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    padding: 0.6rem 1.25rem;
+    border-block: 1px solid var(--rule);
+    margin-block: 0.4rem;
+  }
+
+  .share-diff-line:first-child .share-diff-sep,
+  .share-diff-sep:first-child {
+    margin-top: 0;
+  }
+
+  /* Word marks, in both modes. `mark` and `del` are the right elements —
+     the tint is the presentation, the element is the meaning. */
+  .share-diff-ins,
+  .share-diff-del {
+    border-radius: 1px;
+    padding: 0 1px;
+    color: inherit;
+  }
+
+  .share-diff-ins {
+    background: var(--diff-add-mark);
+  }
+
+  .share-diff-del {
+    background: var(--diff-del-mark);
+    text-decoration: line-through;
+    text-decoration-color: var(--diff-del-rule);
+  }
+
+  /* The rendered diff: prose, with a rule and a tint down the side of every
+     block that moved. Padding rather than a background on the prose itself,
+     so a tinted block still has the measure the reader is used to. */
+  .share-diff-block {
+    padding: 0.2rem 1rem;
+    margin-block: 0.4rem;
+  }
+
+  .share-diff-block.is-add {
+    background: var(--diff-add);
+    border-left: 2px solid var(--diff-add-rule);
+  }
+
+  .share-diff-block.is-del {
+    background: var(--diff-del);
+    border-left: 2px solid var(--diff-del-rule);
+  }
+
+  /* Context: no tint, and a hairline to say it is not part of the change. */
+  .share-diff-block.is-equal {
+    border-left: 2px solid var(--rule);
+    color: var(--ink-soft);
+  }
+
+  .share-diff-collapsed {
+    margin-block: 0.4rem;
+  }
+
+  .share-diff-collapsed > summary {
+    cursor: pointer;
+  }
+
+  .share-diff-collapsed > summary::marker,
+  .share-diff-collapsed > summary::-webkit-details-marker {
+    color: var(--ink-muted);
+  }
+
+  .share-diff-collapsed[open] > summary {
+    margin-bottom: 0.6rem;
+  }
+
+  .share-diff-collapsed .prose-body {
+    padding-left: 1rem;
+    border-left: 2px solid var(--rule);
+    color: var(--ink-soft);
+  }
+
+  /* A block the renderer drops (raw HTML, a comment) shown as its source,
+     so a change to one is not an invisible change. */
+  .share-diff-plain {
+    font-family: var(--font-mono);
+    font-size: 0.78em;
+    white-space: pre-wrap;
+    color: var(--ink-soft);
+  }
 }
 
 /* Print / PDF. The PDF route prints this same page with ?print=1, which
@@ -841,6 +1035,17 @@
     position: relative;
     display: inline-flex;
     border: 1px solid var(--rule-strong);
+  }
+
+  /* The diff control: a toggle, not a mode, so it is boxed like the draft
+     menu and sits to the right of the view toggle rather than inside it. */
+  .share-diffbox {
+    display: inline-flex;
+    border: 1px solid var(--rule-strong);
+  }
+
+  .share-diff-toggle {
+    white-space: nowrap;
   }
 
   .share-versions__button {

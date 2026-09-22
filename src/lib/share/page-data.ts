@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { VersionOption } from "@/components/share/VersionMenu";
 import type { ReaderPageProps } from "@/components/share/ReaderPage";
 import { getStore } from "./index";
+import { documentDiff, type DocumentDiff } from "./diff";
 import { renderDocument, renderHtml, type RenderedSection } from "./markdown";
 import {
   documentFilename,
@@ -10,6 +11,7 @@ import {
   getPublicDocument,
   isVersionSlug,
   publicShape,
+  type Attachment,
   type SharedDocument,
   type ShareStore,
 } from "./store";
@@ -141,6 +143,37 @@ function hasVersions(view: ShareView): boolean {
   return (view.current.versions ?? []).length > 0;
 }
 
+/**
+ * "Diff vs live" for what this page shows, or undefined on the current
+ * draft — there is nothing to compare it against.
+ *
+ * Both sides are already in memory: an archived page reads the snapshot and
+ * the current document to answer the draft menu at all (see `loadShareView`),
+ * so the diff costs no fetch, only the comparison. It is computed here rather
+ * than in the browser so the client bundle carries no diff library and no
+ * second copy of the document.
+ *
+ * `file` is the context file being read, if any. A file the current draft no
+ * longer carries diffs against nothing, which reads as a full removal — which
+ * is what happened to it.
+ */
+async function viewDiff(view: ShareView, file: Attachment | null): Promise<DocumentDiff | undefined> {
+  if (!view.slug) return undefined;
+  const live = file
+    ? (findAttachment(view.current, file.name)?.markdown ?? null)
+    : view.current.markdown;
+  return documentDiff({
+    archived: file ? file.markdown : view.doc.markdown,
+    live,
+    liveLabel: view.current.version ?? "current",
+  });
+}
+
+/** `?diff=1`, honoured only where there is a live draft to compare with. */
+function initialDiff(view: ShareView, search: { diff?: string }): boolean {
+  return view.slug !== null && search.diff === "1";
+}
+
 export type PrintProps = {
   kind: "print";
   title: string | null;
@@ -162,7 +195,7 @@ export type SharePageProps = PrintProps | { kind: "reader"; reader: ReaderPagePr
  */
 export async function sharePageProps(
   view: ShareView,
-  search: { view?: string; print?: string; file?: string },
+  search: { view?: string; print?: string; file?: string; diff?: string },
 ): Promise<SharePageProps | null> {
   const { doc, slug } = view;
 
@@ -181,10 +214,11 @@ export async function sharePageProps(
     };
   }
 
-  const [rendered, html, files] = await Promise.all([
+  const [rendered, html, files, diff] = await Promise.all([
     renderDocument(doc.markdown),
     renderHtml(doc.markdown),
     loadViewerAttachments(doc, slug),
+    viewDiff(view, null),
   ]);
   const versions = hasVersions(view) ? versionOptions(view, null) : [];
 
@@ -202,8 +236,10 @@ export async function sharePageProps(
         markdown: doc.markdown,
         pdfUrl: pdfUrl(doc.id, slug),
         markdownUrl: markdownUrl(doc.id, slug),
+        diff,
       },
       initialView: search.view === "markdown" ? "markdown" : "reader",
+      initialDiff: initialDiff(view, search),
       documentName: documentFilename(doc),
       documentHref: readerUrl(doc.id, slug),
       files,
@@ -218,16 +254,17 @@ export async function sharePageProps(
 export async function attachmentPageProps(
   view: ShareView,
   name: string,
-  search: { view?: string },
+  search: { view?: string; diff?: string },
 ): Promise<ReaderPageProps | null> {
   const { doc, slug } = view;
   const file = findAttachment(doc, name);
   if (!file) return null;
 
-  const [rendered, html, files] = await Promise.all([
+  const [rendered, html, files, diff] = await Promise.all([
     renderDocument(file.markdown),
     renderHtml(file.markdown),
     loadViewerAttachments(doc, slug),
+    viewDiff(view, file),
   ]);
   const versions = hasVersions(view) ? versionOptions(view, file.name) : [];
 
@@ -243,8 +280,10 @@ export async function attachmentPageProps(
       markdown: file.markdown,
       pdfUrl: attachmentPdfUrl(doc.id, file.name, slug),
       markdownUrl: attachmentUrl(doc.id, file.name, slug),
+      diff,
     },
     initialView: search.view === "markdown" ? "markdown" : "reader",
+    initialDiff: initialDiff(view, search),
     documentName: documentFilename(doc),
     documentHref: readerUrl(doc.id, slug),
     files,

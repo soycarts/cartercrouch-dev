@@ -10,7 +10,8 @@ import { ReaderPage } from "@/components/share/ReaderPage";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string; name: string }>;
-type Search = Promise<{ view?: string }>;
+// `diff` is ignored on the current draft; see the archived route.
+type Search = Promise<{ view?: string; diff?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id, name } = await params;

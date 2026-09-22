@@ -9,7 +9,7 @@ import { SharePageView } from "@/components/share/SharePageView";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string; version: string }>;
-type Search = Promise<{ view?: string; print?: string; file?: string }>;
+type Search = Promise<{ view?: string; print?: string; file?: string; diff?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id, version } = await params;

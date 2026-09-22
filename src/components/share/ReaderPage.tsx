@@ -15,6 +15,8 @@ export type ReaderPageProps = {
   toc: TocEntry[];
   doc: ViewerDocument;
   initialView?: "reader" | "markdown";
+  /** Open on the diff rather than on the draft — `?diff=1`. */
+  initialDiff?: boolean;
   documentName: string;
   documentHref: string;
   files: ViewerAttachment[];
@@ -41,6 +43,7 @@ export function ReaderPage({
   toc,
   doc,
   initialView = "reader",
+  initialDiff = false,
   documentName,
   documentHref,
   files,
@@ -78,9 +81,11 @@ export function ReaderPage({
       <DocumentViewer
         doc={doc}
         initialView={initialView}
+        initialDiff={initialDiff}
         aside={aside}
         versionLabel={versionLabel}
         versions={versions}
+        superseded={superseded}
       />
     </div>
   );

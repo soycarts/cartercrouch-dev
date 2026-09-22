@@ -8,7 +8,7 @@ import { ReaderPage } from "@/components/share/ReaderPage";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string; version: string; name: string }>;
-type Search = Promise<{ view?: string }>;
+type Search = Promise<{ view?: string; diff?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id, version, name } = await params;

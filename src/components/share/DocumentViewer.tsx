@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { DocumentDiff } from "@/lib/share/diff";
 import type { RenderedSection } from "@/lib/share/markdown";
+import { isEmptyDiff } from "@/lib/share/diff";
+import { DiffProse } from "./DiffProse";
+import { DiffSource } from "./DiffSource";
 import { Prose } from "./Prose";
 import { ReaderControls } from "./ReaderControls";
 import { VersionMenu, type VersionOption } from "./VersionMenu";
@@ -16,6 +20,8 @@ export type ViewerDocument = {
   /** Where the PDF and .md live for this document or attachment. */
   pdfUrl: string;
   markdownUrl: string;
+  /** Set on an archived draft only: how it differs from the current one. */
+  diff?: DocumentDiff;
 };
 
 type View = "reader" | "markdown";
@@ -118,31 +124,89 @@ function SourceBox({ markdown }: { markdown: string }) {
 }
 
 /**
+ * One line above the diff saying which way round it is and how much moved.
+ * The header's superseded notice says *that* this draft was replaced; this
+ * says what the replacement did.
+ */
+function DiffSummary({
+  diff,
+  versionLabel,
+}: {
+  diff: DocumentDiff;
+  versionLabel: string | null;
+}) {
+  const { added, removed, changed } = diff.stats;
+  const counts = [
+    changed > 0 ? `${changed} changed` : null,
+    added > 0 ? `${added} added` : null,
+    removed > 0 ? `${removed} removed` : null,
+  ].filter(Boolean);
+  return (
+    <p className="share-diff-summary">
+      <span>
+        Draft {versionLabel ?? "archived"} → draft {diff.liveLabel}
+      </span>
+      {counts.length > 0 && <span className="share-diff-summary__counts">{counts.join(" · ")}</span>}
+    </p>
+  );
+}
+
+/**
  * Reader ⇄ Markdown toggle, centred, with the four actions beside it. Used
  * for the main document and, inside the popup, for every attachment.
  */
 export function DocumentViewer({
   doc,
   initialView = "reader",
+  initialDiff = false,
   compact = false,
   title = null,
   aside = null,
   versionLabel = null,
   versions = [],
+  superseded = null,
 }: {
   doc: ViewerDocument;
   initialView?: View;
+  /** Start on the diff — `?diff=1`, so a diff link opens as one. */
+  initialDiff?: boolean;
   compact?: boolean;
   /** The lifted H1, for the popup — the main page prints its own. */
   title?: string | null;
   /** The draft being shown, and every draft to choose between. */
   versionLabel?: string | null;
   versions?: VersionOption[];
+  /** Set only on an archived draft. The diff control needs no more than
+   *  whether there is a current draft this one is behind. */
+  superseded?: { at: string; currentHref: string } | null;
   /** Side pane (file tree, contents). The bar spans the full width above
    *  both pane and body, so it has the whole measure to stay on one row. */
   aside?: React.ReactNode;
 }) {
   const [view, setView] = useState<View>(initialView);
+  // The diff is offered on an archived page and nowhere else: the current
+  // draft has nothing to be compared with, and the attachment popup shows a
+  // file of the draft you are already reading.
+  const canDiff = !compact && superseded !== null && doc.diff !== undefined;
+  const [diff, setDiff] = useState(canDiff && initialDiff);
+
+  // Mirror the diff into the URL so a diff is a link someone can send,
+  // without a navigation: the page's own props already hold both drafts.
+  // Only the viewer that owns the control writes the URL — a popup open over
+  // an archived page must not strip its ?diff=1.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!canDiff) return;
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    const url = new URL(window.location.href);
+    if (diff) url.searchParams.set("diff", "1");
+    else url.searchParams.delete("diff");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [canDiff, diff]);
+
   const tab = (target: View, label: string) => (
     <button
       type="button"
@@ -155,11 +219,31 @@ export function DocumentViewer({
     </button>
   );
 
-  const body =
+  const draft =
     view === "markdown" ? (
       <SourceBox markdown={doc.markdown} />
     ) : (
       <Prose sections={doc.sections} />
+    );
+
+  // The two modes keep their meaning under the diff: Reader still renders
+  // prose, Markdown still shows source. Only what they are pointed at
+  // changes.
+  const body =
+    diff && doc.diff ? (
+      <div className="share-diff">
+        <DiffSummary diff={doc.diff} versionLabel={versionLabel} />
+        {doc.diff.note && <p className="share-diff-note">{doc.diff.note}</p>}
+        {isEmptyDiff(doc.diff) ? (
+          <p className="share-diff-note">No differences from the current draft.</p>
+        ) : view === "markdown" ? (
+          <DiffSource hunks={doc.diff.source} />
+        ) : (
+          <DiffProse blocks={doc.diff.rendered} />
+        )}
+      </div>
+    ) : (
+      draft
     );
 
   return (
@@ -178,6 +262,21 @@ export function DocumentViewer({
             {tab("reader", "Reader")}
             {tab("markdown", "Markdown")}
           </div>
+          {/* Right of the view toggle, boxed like the draft menu: it is not a
+              third view, it is what the two views are pointed at. */}
+          {canDiff && (
+            <div className="share-diffbox">
+              <button
+                type="button"
+                className={`share-tab share-diff-toggle ${diff ? "is-active" : ""}`}
+                aria-pressed={diff}
+                title="Diff vs live"
+                onClick={() => setDiff((was) => !was)}
+              >
+                Diff vs live
+              </button>
+            </div>
+          )}
         </div>
         <div className="share-actions">
           <ActionButton label="Copy formatted" onClick={() => copyFormatted(doc.html, doc.markdown)} />
