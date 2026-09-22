@@ -194,3 +194,81 @@ describe("a snapshot the current document does not list", () => {
     expect(await loadShareView(doc.id, "draft1_0", store)).not.toBeNull();
   });
 });
+
+describe("the diff an archived page carries", () => {
+  it("is computed from the two blobs the page already reads", async () => {
+    const store = new CountingStore();
+    const doc = await publishDocument(store, {
+      markdown: "# Doc\n\nThe collector writes one event per intention.\n",
+      version: "1.0",
+      attachments: [SPEC],
+    });
+    await updateDocument(store, doc.id, {
+      markdown: "# Doc\n\nThe collector writes every event per intention.\n",
+      version: "1.1",
+      attachments: [SPEC],
+    });
+
+    store.reset();
+    const archived = await loadShareView(doc.id, "draft1_0", store);
+    const props = await sharePageProps(archived!, { diff: "1" });
+    // One current document, one snapshot — the same two reads the draft menu
+    // needs. The diff adds no fetch of its own.
+    expect(store.gets).toBe(1);
+    expect(store.versionGets).toBe(1);
+
+    const diff = props!.kind === "reader" ? props!.reader.doc.diff : undefined;
+    expect(diff!.liveLabel).toBe("1.1");
+    expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
+    expect(diff!.note).toBeNull();
+    expect(
+      diff!.rendered.some((b) => b.kind === "del" && b.html.includes("share-diff-del")),
+    ).toBe(true);
+    expect(
+      diff!.rendered.some((b) => b.kind === "add" && b.html.includes("every")),
+    ).toBe(true);
+  });
+
+  it("is absent on the current draft", async () => {
+    const store = new MemoryShareStore();
+    const doc = await publishDocument(store, { markdown: "# Doc\n", version: "1.0" });
+    await updateDocument(store, doc.id, { markdown: "# Doc 2\n", version: "1.1" });
+    const live = await sharePageProps((await loadShareView(doc.id, undefined, store))!, {});
+    expect(live!.kind === "reader" && live!.reader.doc.diff).toBeUndefined();
+  });
+
+  it("says so for a context file the current draft dropped", async () => {
+    const store = new MemoryShareStore();
+    const doc = await publishDocument(store, {
+      markdown: "# Doc\n",
+      version: "1.0",
+      attachments: [{ name: "dropped.md", markdown: "# Dropped\n\nBody.\n" }],
+    });
+    await updateDocument(store, doc.id, { markdown: "# Doc\n", version: "1.1", attachments: [] });
+
+    const archived = await loadShareView(doc.id, "draft1_0", store);
+    const props = await attachmentPageProps(archived!, "dropped.md", { diff: "1" });
+    expect(props!.doc.diff!.note).toBe("This file is not in the current draft.");
+    expect(props!.doc.diff!.rendered.every((b) => b.kind === "del")).toBe(true);
+  });
+
+  it("is empty when a draft was bumped without an edit", async () => {
+    const store = new MemoryShareStore();
+    const doc = await publishDocument(store, { markdown: "# Doc\n\nSame.\n", version: "1.0" });
+    await updateDocument(store, doc.id, { markdown: "# Doc\n\nSame.\n", version: "1.1" });
+    const archived = await loadShareView(doc.id, "draft1_0", store);
+    const props = await sharePageProps(archived!, { diff: "1" });
+    const diff = props!.kind === "reader" ? props!.reader.doc.diff! : null;
+    expect(diff!.source).toEqual({ hunks: [], trailing: 0, tooLarge: false });
+    expect(diff!.stats).toEqual({ added: 0, removed: 0, changed: 0, coarse: false });
+  });
+
+  it("is not computed for the print view, which is draft-only", async () => {
+    const store = new MemoryShareStore();
+    const doc = await publishDocument(store, { markdown: "# Doc\n\nOne.\n", version: "1.0" });
+    await updateDocument(store, doc.id, { markdown: "# Doc\n\nTwo.\n", version: "1.1" });
+    const archived = await loadShareView(doc.id, "draft1_0", store);
+    const print = await sharePageProps(archived!, { print: "1", diff: "1" });
+    expect(print!.kind).toBe("print");
+  });
+});

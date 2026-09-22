@@ -7,7 +7,9 @@ import { SharePageView } from "@/components/share/SharePageView";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string }>;
-type Search = Promise<{ view?: string; print?: string; file?: string }>;
+// `diff` is in the shape for symmetry with the archived page and is ignored
+// here: the current draft has nothing to be compared against.
+type Search = Promise<{ view?: string; print?: string; file?: string; diff?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;

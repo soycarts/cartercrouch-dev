@@ -340,3 +340,147 @@ describe("draft routes", () => {
     expect((await bumped.json()).error).toMatch(/previousVersion/);
   });
 });
+
+/**
+ * `?diff=1` is a link someone was sent, so it has to survive the route, and
+ * it has to mean nothing on the page that has nothing to compare itself
+ * with. These go through the page components rather than through
+ * `sharePageProps` so the searchParams shape is covered too.
+ */
+describe("the diff query parameter", () => {
+  let id: string;
+
+  beforeAll(async () => {
+    const { POST } = await import("@/app/share/api/share/route");
+    const { PUT } = await import("@/app/share/api/share/[id]/route");
+    const headers = {
+      authorization: `Bearer ${process.env.SHARE_OWNER_TOKEN}`,
+      "content-type": "application/json",
+    };
+    const res = await POST(
+      new Request("http://x/api/share", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          markdown: "# Diff doc\n\nThe first paragraph of the first draft.\n",
+          version: "1.0",
+          attachments: [
+            { name: "spec.md", markdown: "# Spec\n\nEvery event carries an id.\n" },
+          ],
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    id = (await res.json()).id;
+    const bumped = await PUT(
+      new Request(`http://x/api/share/${id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          markdown: "# Diff doc\n\nThe first paragraph of the second draft.\n",
+          version: "1.1",
+          previousVersion: "1.0",
+          attachments: [
+            { name: "spec.md", markdown: "# Spec\n\nEvery event carries an id and a tenant.\n" },
+          ],
+        }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(bumped.status).toBe(200);
+  });
+
+  /** The reader props behind whichever page component rendered. */
+  const readerOf = (element: unknown) => {
+    const props = (element as { props: Record<string, unknown> }).props;
+    return (props.reader ?? props) as {
+      initialDiff?: boolean;
+      doc: { diff?: { stats: { changed: number } } };
+    };
+  };
+
+  it("opens the archived draft on the diff", async () => {
+    const { default: Page } = await import("@/app/share/[id]/[version]/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0" }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(true);
+    expect(reader.doc.diff!.stats.changed).toBe(1);
+  });
+
+  it("does not compute it until it is asked for", async () => {
+    // The comparison is the expensive part of the page, and most views of
+    // an archived draft never open it. Without ?diff=1 the payload is not
+    // built and not serialised into the HTML; the control navigates.
+    const { default: Page } = await import("@/app/share/[id]/[version]/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(reader.initialDiff).toBe(false);
+    expect(reader.doc.diff).toBeUndefined();
+  });
+
+  it("does not compute it for a context file either", async () => {
+    const { default: Page } = await import(
+      "@/app/share/[id]/[version]/files/[name]/view/page"
+    );
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(reader.doc.diff).toBeUndefined();
+  });
+
+  it("sets a duration ceiling on the routes that can compute one", async () => {
+    const version = await import("@/app/share/[id]/[version]/page");
+    const file = await import("@/app/share/[id]/[version]/files/[name]/view/page");
+    expect(version.maxDuration).toBe(30);
+    expect(file.maxDuration).toBe(30);
+  });
+
+  it("ignores it on the current draft, which has nothing to compare with", async () => {
+    const { default: Page } = await import("@/app/share/[id]/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(false);
+    expect(reader.doc.diff).toBeUndefined();
+  });
+
+  it("carries the same parameter on an archived context file", async () => {
+    const { default: Page } = await import(
+      "@/app/share/[id]/[version]/files/[name]/view/page"
+    );
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, version: "draft1_0", name: "spec.md" }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(true);
+    expect(reader.doc.diff!.stats.changed).toBe(1);
+  });
+
+  it("ignores it on a context file of the current draft", async () => {
+    const { default: Page } = await import("@/app/share/[id]/files/[name]/view/page");
+    const reader = readerOf(
+      await Page({
+        params: Promise.resolve({ id, name: "spec.md" }),
+        searchParams: Promise.resolve({ diff: "1" }),
+      }),
+    );
+    expect(reader.initialDiff).toBe(false);
+    expect(reader.doc.diff).toBeUndefined();
+  });
+});

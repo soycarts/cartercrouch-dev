@@ -1,0 +1,769 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import {
+  documentDiff,
+  hasRenderedChange,
+  hasSourceChange,
+  isEmptyDiff,
+  renderedDiff,
+  sourceHunks,
+  similarity,
+  wordMarks,
+} from "../diff";
+import { renderDocument, splitBlocks, stringifyDecorated, topLevelBlocks } from "../markdown";
+
+const ROOT = path.resolve(__dirname, "../../../..");
+const fixture = (name: string) => readFileSync(path.join(ROOT, "fixtures", name), "utf8");
+
+/** Every line of every hunk, flattened, for the assertions that only care
+ *  about what changed rather than where. */
+const flat = (source: ReturnType<typeof sourceHunks>) =>
+  source.hunks.flatMap((h) => h.lines.map((l) => `${l.kind[0]} ${l.text}`));
+
+const BASE = [
+  "# Doc",
+  "",
+  "One.",
+  "",
+  "Two.",
+  "",
+  "Three.",
+  "",
+  "Four.",
+  "",
+  "Five.",
+  "",
+  "Six.",
+  "",
+].join("\n");
+
+describe("source hunks", () => {
+  it("shows an insertion with context on both sides", () => {
+    const source = sourceHunks(BASE, BASE.replace("Three.", "Three.\n\nInserted."));
+    expect(source.hunks).toHaveLength(1);
+    expect(flat(source)).toContain("a Inserted.");
+    // Three lines of context each side, and nothing else marked.
+    expect(flat(source).filter((l) => l.startsWith("a "))).toHaveLength(2); // the line and its blank
+    expect(flat(source).filter((l) => l.startsWith("d "))).toHaveLength(0);
+  });
+
+  it("shows a deletion", () => {
+    const source = sourceHunks(BASE, BASE.replace("Four.\n\n", ""));
+    expect(flat(source)).toContain("d Four.");
+    expect(flat(source).filter((l) => l.startsWith("a "))).toHaveLength(0);
+  });
+
+  it("marks the changed words of a replaced line", () => {
+    const source = sourceHunks(
+      "The quick brown fox jumps over the lazy dog.\n",
+      "The quick red fox leaps over the lazy dog.\n",
+    );
+    const [del, add] = source.hunks[0].lines.filter((l) => l.kind !== "context");
+    expect(del.kind).toBe("del");
+    expect(add.kind).toBe("add");
+    expect(del.marks!.map((m) => del.text.slice(m.start, m.end))).toEqual(["brown", "jumps"]);
+    expect(add.marks!.map((m) => add.text.slice(m.start, m.end))).toEqual(["red", "leaps"]);
+  });
+
+  it("leaves a wholly rewritten line unmarked rather than marking all of it", () => {
+    const source = sourceHunks("Alpha beta gamma.\n", "Something else entirely here.\n");
+    for (const line of source.hunks[0].lines) expect(line.marks).toBeUndefined();
+  });
+
+  it("counts the unchanged lines it is not showing", () => {
+    const long = Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n");
+    const source = sourceHunks(long, long.replace("line 0", "first").replace("line 30", "last"));
+    const hunks = source.hunks;
+    expect(hunks).toHaveLength(2);
+    // Nothing is skipped before the first hunk; the gap between the two is.
+    expect(hunks[0].skipped).toBe(0);
+    expect(hunks[1].skipped).toBeGreaterThan(0);
+    // Exactly the lines between the end of the first hunk and the start of
+    // the second, counted from the first hunk's own extent.
+    const firstOldLines = hunks[0].lines.filter((l) => l.kind !== "add").length;
+    expect(hunks[1].skipped).toBe(hunks[1].oldStart - (hunks[0].oldStart + firstOldLines));
+  });
+
+  it("has nothing to say about two identical documents", () => {
+    expect(sourceHunks(BASE, BASE)).toEqual({ hunks: [], trailing: 0, tooLarge: false });
+  });
+
+  it("does not read a CRLF document as a whole-file rewrite", () => {
+    expect(sourceHunks(BASE.replace(/\n/g, "\r\n"), BASE)).toEqual({ hunks: [], trailing: 0, tooLarge: false });
+  });
+
+  it("keeps jsdiff's no-newline note as a line of its own", () => {
+    const source = sourceHunks("x\ny", "x\nz");
+    expect(flat(source)).toEqual([
+      "c x",
+      "d y",
+      "n  No newline at end of file",
+      "a z",
+      "n  No newline at end of file",
+    ]);
+  });
+});
+
+describe("word marks", () => {
+  it("returns offsets that slice back out of the originals", () => {
+    const marks = wordMarks("alpha beta gamma", "alpha delta gamma")!;
+    expect(marks.del.map((m) => "alpha beta gamma".slice(m.start, m.end))).toEqual(["beta"]);
+    expect(marks.add.map((m) => "alpha delta gamma".slice(m.start, m.end))).toEqual(["delta"]);
+  });
+
+  it("gives up when the two lines share almost nothing", () => {
+    expect(wordMarks("alpha beta gamma delta", "nothing whatsoever alike")).toBeNull();
+  });
+
+  it("gives up on an empty side", () => {
+    expect(wordMarks("", "something")).toBeNull();
+  });
+});
+
+describe("the rendered diff", () => {
+  const doc = (body: string) => `# Doc\n\nLede.\n\n${body}\n`;
+
+  it("marks a changed heading on both sides", async () => {
+    const { blocks, stats } = await renderedDiff(doc("## Section one"), doc("## Section two"));
+    const del = blocks.find((b) => b.kind === "del")!;
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(del.html).toContain('<del class="share-diff-del">one</del>');
+    expect(add.html).toContain('<mark class="share-diff-ins">two</mark>');
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
+  });
+
+  it("marks the changed words of an edited paragraph", async () => {
+    const { blocks } = await renderedDiff(
+      doc("The quick brown fox jumps over it."),
+      doc("The quick red fox jumps over it."),
+    );
+    expect(blocks.find((b) => b.kind === "del")!.html).toContain(
+      '<del class="share-diff-del">brown</del>',
+    );
+    expect(blocks.find((b) => b.kind === "add")!.html).toContain(
+      '<mark class="share-diff-ins">red</mark>',
+    );
+  });
+
+  it("marks a word that spans an inline element's boundary", async () => {
+    // "**one** two" → "**one** three": the mark must land inside the
+    // paragraph's own text node, not swallow the <strong> beside it.
+    const { blocks } = await renderedDiff(doc("**one** two"), doc("**one** three"));
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(add.html).toContain("<strong>one</strong>");
+    expect(add.html).toContain('<mark class="share-diff-ins">three</mark>');
+    // One mark, and it does not swallow the <strong> beside it.
+    expect(add.html.match(/<mark/g)).toHaveLength(1);
+    expect(add.html).not.toContain("<mark class=\"share-diff-ins\"><strong>");
+  });
+
+  it("counts one added list item as one added block", async () => {
+    const { blocks, stats } = await renderedDiff(
+      doc("- one\n- two"),
+      doc("- one\n- two\n- three"),
+    );
+    expect(stats).toEqual({ added: 1, removed: 0, changed: 0, coarse: false });
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(add.html).toContain("three");
+    expect(add.html).not.toContain("one");
+  });
+
+  it("shows a changed table whole, with no word marks inside it", async () => {
+    const table = (cell: string) => doc(`| a | b |\n|---|---|\n| 1 | ${cell} |`);
+    const { blocks, stats } = await renderedDiff(table("2"), table("9"));
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
+    const del = blocks.find((b) => b.kind === "del")!;
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(del.html).toContain("<table>");
+    expect(add.html).toContain("<table>");
+    expect(del.html).not.toContain("share-diff-del");
+    expect(add.html).not.toContain("share-diff-ins");
+    // The whole table on each side, header row included.
+    expect(add.html).toContain("<th>a</th>");
+  });
+
+  it("shows a changed code fence whole, with no word marks inside it", async () => {
+    const fence = (value: string) => doc("```ts\nconst x = " + value + ";\n```");
+    const { blocks, stats } = await renderedDiff(fence("1"), fence("2"));
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(add.html).toContain('<code class="language-ts">');
+    expect(add.html).toContain("const x = 2;");
+    expect(add.html).not.toContain("share-diff-ins");
+  });
+
+  it("does not pair a removed table with an added paragraph", async () => {
+    const { stats } = await renderedDiff(
+      doc("| a | b |\n|---|---|\n| 1 | 2 |"),
+      doc("A paragraph instead."),
+    );
+    expect(stats).toEqual({ added: 1, removed: 1, changed: 0, coarse: false });
+  });
+
+  it("collapses a long unchanged run to its ends and a count", async () => {
+    const body = Array.from({ length: 12 }, (_, i) => `Paragraph ${i}.`).join("\n\n");
+    const { blocks } = await renderedDiff(doc(body), doc(`${body}\n\nAdded at the end.`));
+    const collapsed = blocks.filter((b) => b.kind === "collapsed");
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0].kind === "collapsed" && collapsed[0].count).toBeGreaterThan(5);
+    // First and last block of the run survive as context.
+    expect(blocks.filter((b) => b.kind === "equal")).toHaveLength(2);
+    expect(blocks.some((b) => b.kind === "add" && b.html.includes("Added at the end"))).toBe(true);
+  });
+
+  it("keeps a short unchanged run whole rather than collapsing it", async () => {
+    const { blocks } = await renderedDiff(doc("One."), doc("One.\n\nTwo."));
+    expect(blocks.filter((b) => b.kind === "collapsed")).toHaveLength(0);
+  });
+
+  it("shows a block the renderer drops as its own source", async () => {
+    const { blocks } = await renderedDiff(
+      doc('<div class="raw">gone</div>'),
+      doc('<div class="raw">changed</div>'),
+    );
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(add.html).toContain("share-diff-plain");
+    expect(add.html).toContain("&#x3C;div"); // shown as text, not as markup
+    expect(add.html).not.toContain("<div class=\"raw\">");
+  });
+
+  it("gives every block of a removed file the removed side", async () => {
+    const { blocks, stats } = await renderedDiff("# Gone\n\nBody.\n", "");
+    expect(blocks.every((b) => b.kind === "del")).toBe(true);
+    expect(stats).toEqual({ added: 0, removed: 2, changed: 0, coarse: false });
+  });
+});
+
+describe("the diff's HTML", () => {
+  // The reader's own pipeline drops raw HTML and filters the tree; the diff
+  // decorates that tree afterwards and sanitizes again. Both passes are
+  // asserted here because the diff renders block by block, which is a path
+  // the reader's own tests never take.
+  const nasty = [
+    "# T",
+    "",
+    '<script>alert(1)</script>',
+    "",
+    '<img src=x onerror="alert(1)">',
+    "",
+    "[x](javascript:alert(1))",
+    "",
+    'ok <b onclick="x()">bold</b>',
+    "",
+  ].join("\n");
+
+  it("carries nothing executable through either mode", async () => {
+    const { blocks } = await renderedDiff(nasty, nasty.replace("# T", "# T2"));
+    const html = blocks.map((b) => b.html).join("\n");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("onerror");
+    expect(html).not.toContain("onclick");
+    expect(html).not.toContain("javascript:");
+  });
+
+  it("does not prefix ids twice, and drops them from diff blocks", async () => {
+    const { blocks } = await renderedDiff("## Heading one\n", "## Heading two\n");
+    const html = blocks.map((b) => b.html).join("\n");
+    expect(html).not.toContain("user-content-user-content-");
+    expect(html).not.toContain("id=");
+  });
+
+  it("keeps the table wrapper the reader puts around a table", async () => {
+    const { blocks } = await renderedDiff(
+      "| a |\n|---|\n| 1 |\n",
+      "| a |\n|---|\n| 2 |\n",
+    );
+    expect(blocks.find((b) => b.kind === "add")!.html).toContain('<div class="table-scroll">');
+  });
+});
+
+describe("documentDiff", () => {
+  it("is empty for two identical drafts", async () => {
+    const diff = await documentDiff({ archived: BASE, live: BASE, liveLabel: "1.1" });
+    expect(isEmptyDiff(diff)).toBe(true);
+    expect(diff.note).toBeNull();
+    expect(diff.liveLabel).toBe("1.1");
+  });
+
+  it("says so when the file is not in the current draft", async () => {
+    const diff = await documentDiff({ archived: "# Spec\n\nBody.\n", live: null, liveLabel: "1.1" });
+    expect(diff.note).toBe("This file is not in the current draft.");
+    expect(isEmptyDiff(diff)).toBe(false);
+    // The whole file, as removed, in both representations.
+    expect(diff.source.hunks).toHaveLength(1);
+    expect(diff.source.hunks[0].lines.every((l) => l.kind === "del")).toBe(true);
+    expect(diff.rendered.every((b) => b.kind === "del")).toBe(true);
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   The splitter against the renderer.
+
+   The diff is only as good as its block boundaries: a block that straddles
+   one of the renderer's own blocks would render as something the document
+   never contained. `topLevelBlocks` reads those boundaries off the mdast, so
+   this compares the splitter with the parser rather than with a second
+   opinion.
+
+   Two invariants, both directions of "agree":
+
+   - every boundary the renderer draws is one the splitter draws;
+   - every block the splitter produces lies inside one renderer block.
+
+   The splitter is deliberately finer — a list item rather than a list — so
+   the counts do not match, and the test states the relationship instead.
+
+   SHARE_DIFF_FIXTURES runs the same checks over extra documents: the real
+   50 KB bundle files were checked this way, and the two constructs they
+   turned up (a table indented inside a list item, tab-indented numbering)
+   are in share-blocks.md so the suite keeps testing them.
+   --------------------------------------------------------------------------- */
+describe("block boundaries agree with the renderer's", () => {
+  const extra = (process.env.SHARE_DIFF_FIXTURES ?? "")
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((file) => [file, readFileSync(file, "utf8")] as const);
+
+  const documents: ReadonlyArray<readonly [string, string]> = [
+    ["share-sample.md", fixture("share-sample.md")],
+    ["share-blocks.md", fixture("share-blocks.md")],
+    ...extra,
+  ];
+
+  for (const [name, markdown] of documents) {
+    it(`holds on ${name}`, async () => {
+      const blocks = splitBlocks(markdown);
+      const top = topLevelBlocks(markdown);
+      expect(blocks.length).toBeGreaterThan(0);
+
+      const starts = new Set(blocks.map((b) => b.startLine));
+      expect(top.filter((t) => !starts.has(t.startLine))).toEqual([]);
+
+      const straddling = blocks.filter((b) => {
+        const owner = top.find((t) => b.startLine >= t.startLine && b.startLine <= t.endLine);
+        return !owner || b.endLine > owner.endLine;
+      });
+      expect(straddling).toEqual([]);
+
+      // Finer, never coarser.
+      expect(blocks.length).toBeGreaterThanOrEqual(top.length);
+
+      // And the renderer's own section split — which is the boundary the
+      // reader sees — never falls inside a block either.
+      const { sections } = await renderDocument(markdown);
+      expect(sections.length).toBeGreaterThan(0);
+      const headings = blocks.filter((b) => b.kind === "heading");
+      const h2s = sections.filter((s) => s.heading !== null);
+      expect(headings.length).toBeGreaterThanOrEqual(h2s.length);
+    });
+  }
+});
+
+/* ---------------------------------------------------------------------------
+   Regressions found by the adversarial review of this branch. Each test is
+   the reproduction first, the fix second.
+   --------------------------------------------------------------------------- */
+
+describe("F10: the source file is text", () => {
+  it("has no control bytes in diff.ts", () => {
+    const source = readFileSync(path.join(ROOT, "src/lib/share/diff.ts"));
+    const control = [...source].filter((b) => b < 9 || (b > 13 && b < 32));
+    expect(control).toEqual([]);
+  });
+});
+
+describe("F11: the second sanitizer pass names its class values", () => {
+  it("keeps the four the diff emits and drops anything else", async () => {
+    // Straight at the seam: a tree carrying class names the diff never
+    // emits, through the same stringifier the rendered diff uses.
+    const html = stringifyDecorated([
+      {
+        type: "element",
+        tagName: "p",
+        properties: { className: ["share-diff-plain", "absolute", "inset-0"] },
+        children: [{ type: "text", value: "text" }],
+      },
+      {
+        type: "element",
+        tagName: "mark",
+        properties: { className: ["share-diff-ins", "fixed"] },
+        children: [{ type: "text", value: "word" }],
+      },
+      {
+        type: "element",
+        tagName: "div",
+        properties: { className: ["table-scroll", "opacity-0"] },
+        children: [],
+      },
+      {
+        type: "element",
+        tagName: "span",
+        properties: { className: ["anything"] },
+        children: [{ type: "text", value: "span" }],
+      },
+    ]);
+    expect(html).toBe(
+      '<p class="share-diff-plain">text</p>' +
+        '<mark class="share-diff-ins">word</mark>' +
+        '<div class="table-scroll"></div>' +
+        "<span>span</span>",
+    );
+  });
+
+  it("emits no class the schema does not name", async () => {
+    const { blocks } = await renderedDiff("| a |\n|---|\n| 1 |\n", "| a |\n|---|\n| 2 |\n");
+    const classes = new Set(
+      [...blocks.map((b) => b.html).join("\n").matchAll(/class="([^"]*)"/g)].map((m) => m[1]),
+    );
+    expect([...classes]).toEqual(["table-scroll"]);
+  });
+});
+
+describe("F1: line endings are not a change", () => {
+  // The document the refuter used: a setext heading, whose underline the
+  // block splitter only recognises when the line has no trailing CR, and a
+  // lazy-continuation list that exercises closeListsAtLazyLines.
+  const LF = [
+    "# Title",
+    "",
+    "A setext heading",
+    "----------------",
+    "",
+    "Timour:",
+    "* Sign-off on the definitions",
+    "Seref:",
+    "* Thresholds",
+    "",
+    "A paragraph that is unchanged, the first of several.",
+    "",
+    "Second unchanged paragraph.",
+    "",
+    "Third unchanged paragraph.",
+    "",
+  ].join("\n");
+  const CRLF = LF.replace(/\n/g, "\r\n");
+  const CR = LF.replace(/\n/g, "\r");
+
+  it("splits the same blocks whatever the line endings", () => {
+    const lf = splitBlocks(LF);
+    for (const [name, variant] of [["CRLF", CRLF], ["CR", CR]] as const) {
+      const got = splitBlocks(variant);
+      expect(got.map((b) => `${b.kind}[${b.startLine}-${b.endLine}]`), name).toEqual(
+        lf.map((b) => `${b.kind}[${b.startLine}-${b.endLine}]`),
+      );
+    }
+  });
+
+  for (const [name, archived, live] of [
+    ["CRLF vs LF", CRLF, LF],
+    ["LF vs CRLF", LF, CRLF],
+    ["CR vs LF", CR, LF],
+    ["CRLF vs CR", CRLF, CR],
+  ] as const) {
+    it(`reports no change for ${name} of identical text`, async () => {
+      const rendered = await renderedDiff(archived, live);
+      expect(rendered.stats).toEqual({ added: 0, removed: 0, changed: 0, coarse: false });
+      expect(rendered.blocks.every((b) => b.kind === "equal" || b.kind === "collapsed")).toBe(true);
+
+      const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
+      expect(isEmptyDiff(diff)).toBe(true);
+    });
+  }
+
+  it("still finds the real change in two CRLF drafts", async () => {
+    const edited = CRLF.replace("Sign-off on the definitions", "Sign-off on the metrics");
+    const diff = await documentDiff({ archived: CRLF, live: edited, liveLabel: "1.1" });
+    expect(diff.stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
+    expect(diff.source.hunks).toHaveLength(1);
+    expect(
+      diff.rendered.find((b) => b.kind === "add")!.html,
+    ).toContain('<mark class="share-diff-ins">metrics</mark>');
+  });
+
+  it("the two modes never disagree about whether anything changed", async () => {
+    for (const [archived, live] of [
+      [CRLF, LF],
+      [CR, LF],
+      [CRLF, CRLF.replace("Thresholds", "Threshold policy")],
+    ] as const) {
+      const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
+      const blocksChanged =
+        diff.stats.added + diff.stats.removed + diff.stats.changed > 0;
+      expect(diff.source.hunks.length > 0).toBe(blocksChanged);
+    }
+  });
+});
+
+describe("F6, F7, F8: the Markdown mode is a patch", () => {
+  const BODY = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n") + "\n";
+
+  it("uses ASCII markers, one character wide, with no padding in the text", () => {
+    const source = sourceHunks("- a bullet\n", "- a bullet changed\n");
+    // The del line's text is the line itself — the marker is not part of it,
+    // so the component can put exactly one character in front of it.
+    const del = source.hunks[0].lines.find((l) => l.kind === "del")!;
+    expect(del.text).toBe("- a bullet");
+    expect(del.text.startsWith("- -")).toBe(false);
+  });
+
+  it("counts the unchanged lines after the last hunk", () => {
+    // One change near the top: three lines of context, then everything else.
+    const source = sourceHunks(BODY, BODY.replace("line 2\n", "line two\n"));
+    expect(source.hunks).toHaveLength(1);
+    const shown = source.hunks[0].lines.filter((l) => l.kind !== "add").length;
+    expect(source.hunks[0].skipped + shown + source.trailing).toBe(40);
+    expect(source.trailing).toBeGreaterThan(30);
+  });
+
+  it("announces both ends when the change is in the middle", () => {
+    const source = sourceHunks(BODY, BODY.replace("line 20\n", "line twenty\n"));
+    expect(source.hunks[0].skipped).toBeGreaterThan(0);
+    expect(source.trailing).toBeGreaterThan(0);
+  });
+
+  it("has nothing to announce when the whole file is one hunk", () => {
+    const source = sourceHunks("a\nb\n", "a\nc\n");
+    expect(source.hunks[0].skipped).toBe(0);
+    expect(source.trailing).toBe(0);
+  });
+
+  it("claims no trailing lines when there are no hunks at all", () => {
+    expect(sourceHunks(BODY, BODY)).toEqual({ hunks: [], trailing: 0, tooLarge: false });
+  });
+
+  it("keeps the no-newline note attached to the side it belongs to", () => {
+    const source = sourceHunks("a\nb", "a\nb\n");
+    const kinds = source.hunks[0].lines.map((l) => `${l.kind}:${l.text}`);
+    expect(kinds).toContain("note: No newline at end of file");
+    // And it is not mistaken for context that the reader could edit.
+    expect(source.hunks[0].lines.filter((l) => l.kind === "note")).toHaveLength(1);
+  });
+});
+
+describe("F3: a rewrite is paired with the block it rewrote", () => {
+  // The refuter's case. Two bullets in, one out: the *outcome* bullet was
+  // deleted outright, and the *intention* bullet had Goa → Mandrem. Pairing
+  // the first removal with the first addition marked "outcome → intention",
+  // which is a sentence nobody wrote.
+  const archived = [
+    "## Acceptance",
+    "",
+    "- Verify the outcome counts for the Goa cohort",
+    "- Verify the intention counts for the Goa cohort",
+    "",
+    "Signed off by research.",
+    "",
+  ].join("\n");
+  const live = [
+    "## Acceptance",
+    "",
+    "- Verify the intention counts for the Mandrem cohort",
+    "",
+    "Signed off by research.",
+    "",
+  ].join("\n");
+
+  it("pairs by similarity, not by position", async () => {
+    const { blocks, stats } = await renderedDiff(archived, live);
+    expect(stats).toEqual({ added: 0, removed: 1, changed: 1, coarse: false });
+
+    const del = blocks.filter((b) => b.kind === "del");
+    const add = blocks.filter((b) => b.kind === "add");
+    expect(add).toHaveLength(1);
+    expect(del).toHaveLength(2);
+
+    // The pair is the intention bullet, and the only marked word is the
+    // cohort's name.
+    const paired = del.find((b) => b.html.includes("share-diff-del"))!;
+    expect(paired.html).toContain("intention");
+    expect(paired.html).toContain('<del class="share-diff-del">Goa</del>');
+    expect(paired.html).not.toContain('<del class="share-diff-del">outcome</del>');
+    expect(add[0].html).toContain('<mark class="share-diff-ins">Mandrem</mark>');
+    expect(add[0].html).not.toContain('<mark class="share-diff-ins">intention</mark>');
+
+    // The outcome bullet is a plain removal, unmarked.
+    const lone = del.find((b) => !b.html.includes("share-diff-del"))!;
+    expect(lone.html).toContain("outcome");
+  });
+
+  it("emits the removals in document order, each pair together", async () => {
+    const { blocks } = await renderedDiff(archived, live);
+    const shape = blocks
+      .filter((b) => b.kind === "del" || b.kind === "add")
+      .map((b) => `${b.kind}:${/outcome/.test(b.html) ? "outcome" : "intention"}`);
+    // Outcome came first in the archived draft and comes first here; the
+    // intention bullet's replacement follows it immediately.
+    expect(shape).toEqual(["del:outcome", "del:intention", "add:intention"]);
+  });
+
+  it("does not pair two unrelated blocks as an edit", async () => {
+    const { stats } = await renderedDiff(
+      "intro\n\nThe quarterly target is forty million.\n\noutro\n",
+      "intro\n\nA sentence about something else entirely.\n\noutro\n",
+    );
+    expect(stats).toEqual({ added: 1, removed: 1, changed: 0, coarse: false });
+  });
+
+  it("still pairs a near-identical rewrite", async () => {
+    const { stats, blocks } = await renderedDiff(
+      "intro\n\nThe quarterly revenue target is forty million dollars.\n\noutro\n",
+      "intro\n\nThe quarterly revenue target is fourteen million dollars.\n\noutro\n",
+    );
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 1, coarse: false });
+    expect(blocks.find((b) => b.kind === "add")!.html).toContain(
+      '<mark class="share-diff-ins">fourteen</mark>',
+    );
+  });
+
+  it("keeps two independent edits apart", async () => {
+    const { blocks, stats } = await renderedDiff(
+      "para about alpha and the first topic\n\npara about beta and the second topic\n",
+      "para about alpha and the first topic now\n\npara about beta and the second topic too\n",
+    );
+    expect(stats).toEqual({ added: 0, removed: 0, changed: 2, coarse: false });
+    const adds = blocks.filter((b) => b.kind === "add");
+    expect(adds[0].html).toContain("alpha");
+    expect(adds[1].html).toContain("beta");
+  });
+});
+
+describe("F4: each mode answers for its own emptiness", () => {
+  const BODY = ["# Doc", "", "A paragraph of the document.", "", "And a second one.", ""].join("\n");
+
+  it("separates a whitespace-only change: a hunk, and no changed block", async () => {
+    // The blocks compare on whitespace-collapsed text, so this is a line
+    // change and not a block change. Both answers are right; they are just
+    // not the same answer, and each mode has to give its own.
+    const diff = await documentDiff({
+      archived: BODY,
+      live: BODY.replace("A paragraph of the document.", "A paragraph of the document.   "),
+      liveLabel: "1.1",
+    });
+    expect(hasSourceChange(diff)).toBe(true);
+    expect(hasRenderedChange(diff)).toBe(false);
+    expect(isEmptyDiff(diff)).toBe(false);
+  });
+
+  it("agrees when there is a real change", async () => {
+    const diff = await documentDiff({
+      archived: BODY,
+      live: BODY.replace("second", "third"),
+      liveLabel: "1.1",
+    });
+    expect(hasSourceChange(diff)).toBe(true);
+    expect(hasRenderedChange(diff)).toBe(true);
+  });
+
+  it("agrees when there is none", async () => {
+    const diff = await documentDiff({ archived: BODY, live: BODY, liveLabel: "1.1" });
+    expect(hasSourceChange(diff)).toBe(false);
+    expect(hasRenderedChange(diff)).toBe(false);
+    expect(isEmptyDiff(diff)).toBe(true);
+  });
+});
+
+describe("similarity", () => {
+  it("is 1 for the same text and 0 for unrelated text", () => {
+    expect(similarity("the same words", "the same words")).toBe(1);
+    expect(similarity("alpha bravo charlie", "xylophone")).toBeLessThan(0.5);
+  });
+
+  it("counts against the shorter side, so a sentence grown into a paragraph pairs", () => {
+    expect(similarity("Signed off by research.", "Signed off by research. And by ops.")).toBe(1);
+  });
+
+  it("is 0 when either side has no words", () => {
+    expect(similarity("", "something")).toBe(0);
+    expect(similarity("   ", "something")).toBe(0);
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   F2: the diff is bounded.
+
+   Both algorithms underneath cost O(N × D), and this runs inside a page
+   request on documents of up to 900 KB. The refuter's four shapes are the
+   ones that ran for tens of seconds: every block changed, every block
+   reordered, half a megabyte with no blank line in it, and every other line
+   different. The budgets are wall-clock, so these assert a ceiling with room
+   for a slow machine rather than a number — a regression here is tenfold,
+   not marginal.
+   --------------------------------------------------------------------------- */
+describe("F2: every shape of change is bounded", () => {
+  const KB = 1024;
+  /** ~500 KB of lines, the way the refuter built them. */
+  const fill = (make: (i: number) => string, limit = 500 * KB) => {
+    const out: string[] = [];
+    let bytes = 0;
+    for (let i = 0; bytes < limit; i += 1) {
+      const line = make(i);
+      out.push(line);
+      bytes += Buffer.byteLength(line) + 1;
+    }
+    return out.join("\n") + "\n";
+  };
+
+  const took = async (fn: () => Promise<unknown>) => {
+    const started = performance.now();
+    await fn();
+    return performance.now() - started;
+  };
+
+  it("finishes the alternating-line case well inside a request", async () => {
+    const archived = fill((i) => `line ${i} of the document body text here`);
+    const live = fill((i) =>
+      i % 2 ? `line ${i} of the document body text here` : `LINE ${i} of the body text HERE`,
+    );
+    expect(Buffer.byteLength(archived)).toBeGreaterThan(480 * KB);
+    const ms = await took(() => documentDiff({ archived, live, liveLabel: "1.1" }));
+    expect(ms).toBeLessThan(3000);
+  }, 20000);
+
+  it("finishes when every block changed", async () => {
+    const archived = fill((i) => `Paragraph ${i}: the quick brown fox jumps over the lazy dog.\n`);
+    const live = archived.replace(/lazy/g, "eager");
+    const ms = await took(() => documentDiff({ archived, live, liveLabel: "1.1" }));
+    expect(ms).toBeLessThan(6000);
+  }, 30000);
+
+  it("finishes when every block moved", async () => {
+    const archived = fill((i) => `Paragraph ${i}: the quick brown fox jumps over the lazy dog.\n`);
+    const live = archived.trimEnd().split("\n\n").reverse().join("\n\n") + "\n";
+    const ms = await took(() => documentDiff({ archived, live, liveLabel: "1.1" }));
+    expect(ms).toBeLessThan(6000);
+  }, 30000);
+
+  it("says so when the line diff runs out of budget", async () => {
+    // Half a megabyte with nothing in common: the line diff cannot finish,
+    // and the Markdown mode has to say that rather than show an empty box.
+    const archived = fill((i) => `alpha ${i} beta gamma delta epsilon zeta eta theta`);
+    const live = fill((i) => `${i} wholly different content on every single line here`);
+    const diff = await documentDiff({ archived, live, liveLabel: "1.1" });
+    expect(diff.source.tooLarge).toBe(true);
+    expect(diff.source.hunks).toEqual([]);
+    // And the block side still answers, coarsely.
+    expect(diff.stats.coarse).toBe(true);
+    expect(hasRenderedChange(diff)).toBe(true);
+  }, 30000);
+
+  it("shows a block too large to format as exact text instead", async () => {
+    // One paragraph, no blank line, larger than the render limit.
+    const line = "the same line again and again and again";
+    const archived = fill(() => line, 80 * KB);
+    const live = archived + "one more line at the very end\n";
+    const { blocks, stats } = await renderedDiff(archived, live);
+    expect(stats.coarse).toBe(true);
+    const add = blocks.find((b) => b.kind === "add")!;
+    expect(add.html).toContain("share-diff-plain");
+    expect(add.html).toContain("one more line at the very end");
+  }, 30000);
+
+  it("keeps a document of ordinary size fine-grained", async () => {
+    const body = fill((i) => `Paragraph ${i} of a document of an ordinary size.\n`, 20 * KB);
+    const { stats, blocks } = await renderedDiff(body, body.replace("Paragraph 3 ", "Paragraph three "));
+    expect(stats.coarse).toBe(false);
+    expect(stats.changed).toBe(1);
+    expect(blocks.some((b) => b.html.includes("share-diff-ins"))).toBe(true);
+  });
+});
