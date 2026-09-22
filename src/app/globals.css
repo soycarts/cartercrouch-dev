@@ -741,7 +741,6 @@
     margin-block: 0.4rem;
   }
 
-  .share-diff-line:first-child .share-diff-sep,
   .share-diff-sep:first-child {
     margin-top: 0;
   }
