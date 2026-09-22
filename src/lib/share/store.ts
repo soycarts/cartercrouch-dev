@@ -18,6 +18,9 @@ export type DocumentVersion = {
   slug: string;
   publishedAt: string;
   supersededAt: string;
+  /** The context files that draft carried, by name. Absent on entries
+   *  written before this was recorded; treat that as "unknown". */
+  attachments?: string[];
 };
 
 export type SharedDocument = {
@@ -77,10 +80,28 @@ const MAX_ATTACHMENTS = 20;
 export const ATTACHMENT_NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,78}\.md$/;
 
 /**
- * Version slugs are their own URL segment, sitting where `files`, `md` and
- * `pdf` also live: `/:id/draft1_0`. The "draft" prefix is what keeps those
- * three out of the namespace — none of them can ever match this pattern —
- * so the reserved words never have to be listed anywhere.
+ * Labels and slugs are one name for one thing, in both directions.
+ *
+ * A label is alphanumeric runs separated by single dots — "1.0", "2",
+ * "2.0.1rc" — and its slug is that with the dots turned into underscores.
+ * Because a label can hold no underscore, the mapping inverts unambiguously:
+ * exactly one label produces "draft1_0". The first cut of this validated the
+ * *slug* instead and squashed every other character to "_", which let "1-0",
+ * "1_0" and "1 0" all claim "draft1_0" — and the moment two labels on one
+ * document shared a slug, every later bump hit the collision check and the
+ * document could never be bumped again. Validating the label is what makes
+ * that unrepresentable, and it is also what keeps NUL, newlines, "/", "%"
+ * and ".." out of a segment that ends up in a URL and a Redis key.
+ */
+export const VERSION_LABEL = /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/;
+const MAX_VERSION_LABEL = 32;
+
+/**
+ * The slug as it appears in a URL, sitting where `files`, `md` and `pdf`
+ * also live: `/:id/draft1_0`. The "draft" prefix is what keeps those three
+ * out of the namespace — none of them can ever match this pattern — so the
+ * reserved words never have to be listed anywhere. Kept in step with
+ * VERSION_LABEL by construction, and with next.config's copy by test.
  */
 export const VERSION_SLUG = /^draft[0-9A-Za-z]+(?:_[0-9A-Za-z]+)*$/;
 
@@ -88,29 +109,28 @@ export function isVersionSlug(value: string): boolean {
   return VERSION_SLUG.test(value);
 }
 
-/** "1.0" -> "draft1_0". Anything that is not a letter or digit becomes "_". */
-export function versionSlug(label: string): string {
-  return "draft" + label.replace(/[^0-9A-Za-z]+/g, "_");
+export function isVersionLabel(value: string): boolean {
+  return value.length <= MAX_VERSION_LABEL && VERSION_LABEL.test(value);
 }
 
-const MAX_VERSION_LABEL = 32;
+/** "1.0" -> "draft1_0". Only ever called with a validated label. */
+export function versionSlug(label: string): string {
+  return "draft" + label.replaceAll(".", "_");
+}
 
 /**
- * A label is only usable if the slug it produces is routable — "…1.0." would
- * become "draft1_0_", which no URL can reach — so the round trip is the
- * validation. Absent input stays absent; the caller decides what that means.
+ * Absent input stays absent; the caller decides what that means. Anything
+ * present must be a label this codebase can name, address and get back.
  */
 function validateVersionLabel(input: unknown, field = "version"): string | null {
   if (input === undefined || input === null) return null;
   if (typeof input !== "string") throw new ShareError(`The ${field} must be text.`, 400);
   const label = input.trim();
   if (!label) return null;
-  if (label.length > MAX_VERSION_LABEL) {
-    throw new ShareError(`A ${field} label is at most ${MAX_VERSION_LABEL} characters.`, 400);
-  }
-  if (!isVersionSlug(versionSlug(label))) {
+  if (!isVersionLabel(label)) {
     throw new ShareError(
-      `"${label}" is not a usable ${field} label — start it with a letter or digit.`,
+      `"${label}" is not a usable ${field} label — letters and digits in dot-separated groups, ` +
+        `at most ${MAX_VERSION_LABEL} characters.`,
       400,
     );
   }
@@ -122,13 +142,25 @@ function validateVersionLabel(input: unknown, field = "version"): string | null 
  * a "***Draft:*** 1.0" line near the top, which is how these documents have
  * been marked up by hand until now. Read once, when the first bump needs a
  * name for the draft it is archiving.
+ *
+ * Whole lines only, and only the two forms that were actually used. The
+ * first cut matched a prefix anywhere in the first twenty lines and kept
+ * whatever characters it liked from the value, so "Draft: 2026-09-21"
+ * silently became "2026" and a sentence opening "Draft: 0.1 was the number
+ * they used" became "0.1" — a wrong label is worse than no label, because
+ * it is the permanent address of an archived draft. A value this file
+ * cannot name is no answer at all: the caller then asks for previousVersion.
  */
+const DRAFT_MARKER = [/^\*{3}Draft:\*{3}\s*(\S+)\s*$/, /^Draft:\s*(\S+)\s*$/];
+
 export function inferVersionLabel(markdown: string): string | null {
-  const head = markdown.split("\n", 20).join("\n");
-  const match = /^\*{0,3}Draft:?\*{0,3}\s*([0-9][0-9A-Za-z.]*)/m.exec(head);
-  if (!match) return null;
-  const label = match[1];
-  return isVersionSlug(versionSlug(label)) ? label : null;
+  for (const line of markdown.split("\n", 10)) {
+    for (const pattern of DRAFT_MARKER) {
+      const found = pattern.exec(line)?.[1];
+      if (found) return isVersionLabel(found) ? found : null;
+    }
+  }
+  return null;
 }
 
 export type DocumentInput = {
@@ -261,18 +293,35 @@ export async function updateDocument(
     // What to call the draft being retired. A document published before
     // versioning has no label of its own: take the owner's word for it, or
     // read the "Draft: X" line it was already carrying.
+    if (previousLabel !== null && previousLabel === nextLabel) {
+      throw new ShareError("previousVersion is the version you are publishing.", 400);
+    }
     const outgoing = existingLabel ?? previousLabel ?? inferVersionLabel(existing.markdown);
     if (!outgoing) {
       throw new ShareError("Existing document has no version; pass previousVersion.", 400);
     }
     const slug = versionSlug(outgoing);
-    const taken = versions.some((v) => v.slug === slug) || (await store.getVersion(id, slug));
-    if (taken) {
+    // Refuse up front to give the incoming draft a name the history already
+    // owns. Allowing it left the document with two drafts under one label
+    // and — since the next bump would then have to archive a slug already
+    // listed — no way to ever bump it again.
+    const wanted = versionSlug(nextLabel);
+    if (wanted === slug || versions.some((v) => v.slug === wanted)) {
+      throw new ShareError(`Draft "${nextLabel}" collides with an existing draft.`, 400);
+    }
+    // Only a *listed* snapshot is a real draft. An unlisted one is debris
+    // from a bump whose second write failed; nothing links to it and
+    // getPublicVersion will not serve it, so the retry overwrites it rather
+    // than being blocked by it forever.
+    if (versions.some((v) => v.slug === slug)) {
       throw new ShareError(`Draft "${outgoing}" is already archived.`, 409);
     }
+    const retiring = existing.attachments ?? [];
+    // Snapshot first, then the current document. A failure between the two
+    // loses nothing a reader could already see.
     await store.putVersion(id, slug, {
       ...existing,
-      attachments: existing.attachments ?? [],
+      attachments: retiring,
       filename: existing.filename ?? null,
       version: outgoing,
       // A snapshot is a leaf: the version list lives on the current document.
@@ -280,7 +329,16 @@ export async function updateDocument(
     });
     versions = [
       ...versions,
-      { version: outgoing, slug, publishedAt: existing.updatedAt, supersededAt: now },
+      {
+        version: outgoing,
+        slug,
+        publishedAt: existing.updatedAt,
+        supersededAt: now,
+        // Names only. The reader's draft menu needs to know which drafts had
+        // a given context file, and that question should not cost a full
+        // fetch of every snapshot on every page view.
+        attachments: retiring.map((a) => a.name),
+      },
     ];
     version = nextLabel;
   } else if (nextLabel !== null) {
@@ -343,14 +401,32 @@ export async function getPublicVersion(
   if (!isShareId(id) || !isVersionSlug(slug)) return null;
   const parent = await store.get(id);
   if (!parent || parent.revokedAt) return null;
-  const snapshot = await store.getVersion(id, slug);
+  return publicVersionOf(parent, slug, store);
+}
+
+/**
+ * The listed check is the load-bearing one. A snapshot is written before the
+ * current document that names it, so a failure between the two writes leaves
+ * a copy of the outgoing draft at a slug nothing points at. Serving that
+ * would publish a draft the owner never finished publishing — unlisted in
+ * the menu, unmarked as superseded, and indistinguishable from a real one.
+ * The current document's `versions` is the register of what exists.
+ */
+export async function publicVersionOf(
+  parent: SharedDocument,
+  slug: string,
+  store: ShareStore,
+): Promise<SharedDocument | null> {
+  if (!isVersionSlug(slug)) return null;
+  if (!(parent.versions ?? []).some((v) => v.slug === slug)) return null;
+  const snapshot = await store.getVersion(parent.id, slug);
   if (!snapshot) return null;
   return { ...publicShape(snapshot), versions: [] };
 }
 
 /** Fields added after the first documents were stored read as their empty
  *  value, so a blob written before this release still renders. */
-function publicShape(doc: SharedDocument): SharedDocument {
+export function publicShape(doc: SharedDocument): SharedDocument {
   return {
     ...doc,
     attachments: doc.attachments ?? [],
@@ -371,10 +447,30 @@ export function versionLinks(doc: SharedDocument) {
   }));
 }
 
+/**
+ * A downloaded archived draft names the draft it is. Two files called
+ * design.pdf, one of them eight months stale, are indistinguishable in a
+ * downloads folder — which is exactly where they end up. The current
+ * draft's filenames are untouched.
+ */
+export function versionedFilename(name: string, slug: string | null): string {
+  if (!slug) return name;
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? `${name}-${slug}` : `${name.slice(0, dot)}-${slug}${name.slice(dot)}`;
+}
+
 /** The document's own filename: chosen by the owner, else derived from the title. */
-export function documentFilename(doc: SharedDocument, ext: "md" | "pdf" = "md"): string {
-  if (doc.filename) return ext === "md" ? doc.filename : doc.filename.replace(/\.md$/i, ".pdf");
-  return downloadFilename(doc.title, doc.id, ext);
+export function documentFilename(
+  doc: SharedDocument,
+  ext: "md" | "pdf" = "md",
+  slug: string | null = null,
+): string {
+  const base = doc.filename
+    ? ext === "md"
+      ? doc.filename
+      : doc.filename.replace(/\.md$/i, ".pdf")
+    : downloadFilename(doc.title, doc.id, ext);
+  return versionedFilename(base, slug);
 }
 
 export function findAttachment(doc: SharedDocument, name: string): Attachment | null {
