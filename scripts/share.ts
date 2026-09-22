@@ -92,12 +92,19 @@ async function main() {
   const [file, ...extra] = files;
   // An update that says nothing about the draft is the one dangerous case:
   // it used to be the only case, and it silently replaced whatever was
-  // there. Say which you mean.
-  const undecidedUpdate = Boolean(id) && !version && !sameVersion;
-  if (!file || incomplete || undecidedUpdate) {
-    if (undecidedUpdate) {
-      console.error("An update needs --version <label> or --same-version.\n");
-    }
+  // there. Say which you mean — and only one thing, since a command that
+  // contradicts itself should not get to pick which half to obey.
+  const complaint = !file
+    ? null
+    : id && !version && !sameVersion
+      ? "An update needs --version <label> or --same-version."
+      : version && sameVersion
+        ? "--version and --same-version say opposite things; pass one."
+        : !id && previousVersion
+          ? "--previous-version only means something with --update."
+          : null;
+  if (!file || incomplete || complaint) {
+    if (complaint) console.error(complaint + "\n");
     console.error(USAGE);
     process.exit(2);
   }

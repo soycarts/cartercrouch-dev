@@ -9,8 +9,13 @@ const ID = "[1-9A-HJ-NP-Za-km-z]{22}";
  * An archived draft's slug, as it appears in a URL. The "draft" prefix is
  * what keeps this pattern out of the way of the `files`, `md` and `pdf`
  * segments it shares a position with — none of them can ever match it.
+ *
+ * Character-for-character the body of VERSION_SLUG in lib/share/store.ts,
+ * which a test asserts. A looser pattern here would rewrite URLs the store
+ * then refuses, turning a clean 404 into one the rewrite layer had already
+ * claimed — and "draft_1" and "draft1_" matched the loose version.
  */
-export const VERSION = "draft[0-9A-Za-z_]+";
+export const VERSION = "draft[0-9A-Za-z]+(?:_[0-9A-Za-z]+)*";
 const onShareHost = [{ type: "host" as const, value: SHARE_HOST }];
 
 /**

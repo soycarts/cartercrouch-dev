@@ -65,12 +65,17 @@ describe("share host rewrites", () => {
     }
   });
 
-  it("keeps the version pattern clear of the segments beside it", () => {
+  it("keeps the version pattern clear of the segments beside it", async () => {
+    const { VERSION_SLUG } = await import("../store");
     const version = new RegExp(`^${VERSION}$`);
+    // The rewrite layer and the store must agree exactly, or a URL gets
+    // rewritten onto a route that then refuses the very slug it was given.
+    expect(VERSION).toBe(VERSION_SLUG.source.replace(/^\^/, "").replace(/\$$/, ""));
     expect(version.test("draft1_0")).toBe(true);
-    expect(version.test("draft2_0_rc1")).toBe(true);
-    for (const reserved of ["files", "md", "pdf", "view"]) {
+    expect(version.test("draft2_0_1rc")).toBe(true);
+    for (const reserved of ["files", "md", "pdf", "view", "draft_1", "draft1_"]) {
       expect(version.test(reserved)).toBe(false);
+      expect(VERSION_SLUG.test(reserved)).toBe(false);
     }
   });
 

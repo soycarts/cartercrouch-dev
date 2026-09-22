@@ -121,12 +121,17 @@ export default async function ManageDocumentPage({
       </form>
 
       <div className="mt-12 border-t border-rule pt-8">
-        <p className="kicker text-ink-muted">Edit · the share ID stays the same</p>
+        <p className="kicker text-ink-muted">
+          Edit · the share ID stays the same
+          {doc.version ? " · change the draft label to archive this one" : ""}
+        </p>
         <DocumentForm
           action={update}
           id={id}
           initialMarkdown={doc.markdown}
           initialFilename={doc.filename ?? ""}
+          initialVersion={doc.version ?? ""}
+          requireVersion={Boolean(doc.version)}
           initialAttachments={doc.attachments ?? []}
           submitLabel="Save changes"
         />
