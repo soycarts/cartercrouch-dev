@@ -1282,6 +1282,15 @@
     padding-block: 0.85rem;
   }
 
+  /* The toggle runs to the right edge on a phone, so a menu hung off the
+     button's left corner pushes its own right edge off-screen. Hang it off
+     the right corner instead, and never let it out-measure the viewport. */
+  .share-versions__menu {
+    left: auto;
+    right: -1px;
+    max-width: calc(100vw - 2rem);
+  }
+
   .share-versions__item {
     padding-block: 0.85rem;
   }

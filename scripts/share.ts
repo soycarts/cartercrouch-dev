@@ -135,7 +135,17 @@ async function main() {
     process.exit(1);
   }
   const what = id ? "Updated" : "Published";
-  console.log(`${what} ✓\n\n${body.url}\n${body.markdownUrl}\n${body.pdfUrl}`);
+  const draft = typeof body.version === "string" ? ` — draft ${body.version}` : "";
+  // Newest first, under the three URLs that always point at the current draft.
+  const archived = (body.versions ?? []) as { version: string; url: string }[];
+  const history = archived.length
+    ? "\n\n" +
+      [...archived]
+        .reverse()
+        .map((v) => `draft ${v.version}  ${v.url}`)
+        .join("\n")
+    : "";
+  console.log(`${what} ✓${draft}\n\n${body.url}\n${body.markdownUrl}\n${body.pdfUrl}${history}`);
 }
 
 main().catch((err) => {
