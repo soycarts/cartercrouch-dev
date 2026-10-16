@@ -49,15 +49,22 @@ async function copyFormatted(html: string, markdown: string) {
  * Both labels are always in the DOM, stacked in one grid cell, with the
  * inactive one hidden: the button is as wide as its widest label from the
  * start, so flipping to "Copied" no longer shoves the buttons beside it.
+ *
+ * A link flips only when it is given a `doneLabel` of its own: a cold PDF
+ * takes several seconds to render, and with no word on the button a tap
+ * reads as one that did nothing. The page cannot see the download finish,
+ * so the label simply holds for `doneMs`.
  */
 function ActionButton({
   label,
-  doneLabel = "Copied",
+  doneLabel,
+  doneMs = 1500,
   onClick,
   href,
 }: {
   label: string;
   doneLabel?: string;
+  doneMs?: number;
   onClick?: () => Promise<void>;
   href?: string;
 }) {
@@ -65,15 +72,30 @@ function ActionButton({
 
   useEffect(() => {
     if (!done) return;
-    const timer = setTimeout(() => setDone(false), 1500);
+    const timer = setTimeout(() => setDone(false), doneMs);
     return () => clearTimeout(timer);
-  }, [done]);
+  }, [done, doneMs]);
 
   if (href) {
+    if (!doneLabel) {
+      return (
+        <a href={href} className="share-action">
+          <span className="share-action__stack">
+            <span className="share-action__label">{label}</span>
+          </span>
+        </a>
+      );
+    }
     return (
-      <a href={href} className="share-action">
+      <a
+        href={href}
+        className={`share-action ${done ? "is-done" : ""}`}
+        aria-live="polite"
+        onClick={() => setDone(true)}
+      >
         <span className="share-action__stack">
-          <span className="share-action__label">{label}</span>
+          <span className={`share-action__label ${done ? "is-hidden" : ""}`}>{label}</span>
+          <span className={`share-action__label ${done ? "" : "is-hidden"}`}>{doneLabel}</span>
         </span>
       </a>
     );
@@ -94,7 +116,7 @@ function ActionButton({
     >
       <span className="share-action__stack">
         <span className={`share-action__label ${done ? "is-hidden" : ""}`}>{label}</span>
-        <span className={`share-action__label ${done ? "" : "is-hidden"}`}>{doneLabel}</span>
+        <span className={`share-action__label ${done ? "" : "is-hidden"}`}>{doneLabel ?? "Copied"}</span>
       </span>
     </button>
   );
@@ -292,7 +314,13 @@ export function DocumentViewer({
         <div className="share-actions">
           <ActionButton label="Copy formatted" onClick={() => copyFormatted(doc.html, doc.markdown)} />
           <ActionButton label="Copy markdown" onClick={() => navigator.clipboard.writeText(doc.markdown)} />
-          <ActionButton label="Download PDF" href={`${doc.pdfUrl}?download=1`} />
+          {/* A cold PDF takes around 12 s; the label holds about that long. */}
+          <ActionButton
+            label="Download PDF"
+            doneLabel="Preparing PDF"
+            doneMs={12000}
+            href={`${doc.pdfUrl}?download=1`}
+          />
           <ActionButton label="Download MD" href={`${doc.markdownUrl}?download=1`} />
         </div>
         {/* Theme and text size belong to the page, not to a document, so the
