@@ -328,6 +328,7 @@ describe("block boundaries agree with the renderer's", () => {
   const documents: ReadonlyArray<readonly [string, string]> = [
     ["share-sample.md", fixture("share-sample.md")],
     ["share-blocks.md", fixture("share-blocks.md")],
+    ["share-wide.md", fixture("share-wide.md")],
     ...extra,
   ];
 
