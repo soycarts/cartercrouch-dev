@@ -1511,10 +1511,26 @@
 }
 
 @media (max-width: 900px) {
+  /* At 320px the theme and size groups are wider than the column; let the
+     size group drop to its own row rather than hang into the gutters. */
   .share-controls {
     flex-basis: 100%;
+    flex-wrap: wrap;
     justify-content: center;
     margin-left: 0;
+  }
+
+  /* The draft menu and the view toggle, likewise. */
+  .share-modes {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* One rule between the bar and the pane, not two with air between: the
+     pane's first item (the files or contents summary) brings its own top
+     rule. The popup's bar has no pane after it and keeps its rule. */
+  .share-bar:has(+ .share-layout) {
+    border-bottom: 0;
   }
 
   /* Everything on the bar becomes a finger-sized target. The action's
