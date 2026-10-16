@@ -90,23 +90,51 @@ function rehypeWrapTables() {
  * rehype-sanitize prefixes every id with `user-content-` (protection against
  * DOM clobbering) but leaves `href="#x"` alone, so `[see](#x)` and footnote
  * references went nowhere. This runs after sanitize, like the table wrapper,
- * and touches only fragment links: an href that is already prefixed (a link
- * copied from the page) is left as it is, and so is a bare `#`.
+ * over the whole document, and touches only fragment links.
+ *
+ * It rewrites `#x` only when the tree has an element `user-content-x`, and
+ * leaves every other fragment as written: `#top` (which browsers scroll to the
+ * top of the page when no element has that id), a bare `#`, a link to a
+ * missing target, and a link that already resolves (one copied from the page).
+ *
+ * Ids and hrefs are compared raw and percent-decoded, as browsers do: heading
+ * links arrive encoded (`#caf%C3%A9`) against a raw id (`café`), while footnote
+ * ids and hrefs are both encoded.
  */
 const ID_PREFIX = "user-content-";
+function decodeFragment(fragment: string): string | null {
+  try {
+    return decodeURIComponent(fragment);
+  } catch {
+    return null;
+  }
+}
 function rehypePrefixHashLinks() {
   return (root: HastRoot) => {
+    const ids = new Set<string>();
+    const collect = (nodes: RootContent[]) => {
+      for (const node of nodes) {
+        if (node.type !== "element") continue;
+        const id = node.properties?.id;
+        if (typeof id === "string" && id) ids.add(id);
+        collect(node.children as RootContent[]);
+      }
+    };
+    collect(root.children);
+
+    const resolves = (fragment: string) => {
+      const decoded = decodeFragment(fragment);
+      return ids.has(fragment) || (decoded !== null && ids.has(decoded));
+    };
     const walk = (nodes: RootContent[]) => {
       for (const node of nodes) {
         if (node.type !== "element") continue;
         const href = node.tagName === "a" ? node.properties?.href : undefined;
-        if (
-          typeof href === "string" &&
-          href.length > 1 &&
-          href.startsWith("#") &&
-          !href.startsWith(`#${ID_PREFIX}`)
-        ) {
-          node.properties.href = `#${ID_PREFIX}${href.slice(1)}`;
+        if (typeof href === "string" && href.length > 1 && href.startsWith("#")) {
+          const fragment = href.slice(1);
+          if (!resolves(fragment) && resolves(`${ID_PREFIX}${fragment}`)) {
+            node.properties.href = `#${ID_PREFIX}${fragment}`;
+          }
         }
         walk(node.children as RootContent[]);
       }

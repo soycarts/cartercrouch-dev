@@ -170,12 +170,22 @@ describe("description skips metadata lines", () => {
 
 /** Every id in the HTML, and every in-document link target in it. */
 const idsOf = (html: string) => new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
-const hashTargetsOf = (html: string) =>
-  [...html.matchAll(/\shref="#([^"]+)"/g)].map((m) => decodeURIComponent(m[1]));
-/** The targets no element in the HTML carries. */
+const hashTargetsOf = (html: string) => [...html.matchAll(/\shref="#([^"]+)"/g)].map((m) => m[1]);
+const decoded = (s: string) => {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+};
+/**
+ * The targets no element in the HTML carries. Like a browser, match the raw
+ * fragment first, then the percent-decoded one: heading links are encoded
+ * against a raw id, footnote links and ids are encoded on both sides.
+ */
 const deadLinks = (html: string) => {
   const ids = idsOf(html);
-  return hashTargetsOf(html).filter((target) => !ids.has(target));
+  return hashTargetsOf(html).filter((target) => !ids.has(target) && !ids.has(decoded(target)));
 };
 
 describe("in-document links and footnotes", () => {
@@ -207,6 +217,48 @@ describe("in-document links and footnotes", () => {
     expect(html).toContain('href="#"');
     expect(html).toContain('href="#user-content-top"');
     expect(html).not.toContain("#user-content-user-content-");
+  });
+
+  it("leaves [Back to top](#top) as #top when no element has that id", async () => {
+    // Browsers scroll to the top for #top when nothing carries the id; a
+    // prefixed #user-content-top would match nothing and do nothing.
+    const html = await renderHtml("## One\n\ntext\n\n[Back to top](#top) [gone](#missing)\n");
+    expect(html).toContain('<a href="#top">Back to top</a>');
+    expect(html).toContain('<a href="#missing">gone</a>');
+    expect(html).not.toContain("#user-content-top");
+    expect(html).not.toContain("#user-content-missing");
+  });
+
+  it("links a heading whose own slug starts with user-content-", async () => {
+    const html = await renderHtml("## User content intro\n\n[x](#user-content-intro)\n");
+    expect(html).toContain('id="user-content-user-content-intro"');
+    expect(html).toContain('href="#user-content-user-content-intro"');
+    expect(deadLinks(html)).toEqual([]);
+  });
+
+  it("leaves a link that already resolves as written", async () => {
+    const html = await renderHtml(
+      "## Intro\n\n## User content intro\n\n[copied](#user-content-intro)\n",
+    );
+    expect(html).toContain('<a href="#user-content-intro">copied</a>');
+    expect(deadLinks(html)).toEqual([]);
+  });
+
+  it("links a non-ASCII footnote to its note and back again", async () => {
+    const html = await renderHtml("A claim.[^café]\n\n[^café]: The note.\n");
+    expect(html).not.toContain("user-content-user-content-");
+    expect(html).toContain('href="#user-content-fn-caf%C3%A9"');
+    expect(html).toContain('id="user-content-fn-caf%C3%A9"');
+    expect(html).toContain('href="#user-content-fnref-caf%C3%A9"');
+    expect(html).toContain('id="user-content-fnref-caf%C3%A9"');
+    expect(deadLinks(html)).toEqual([]);
+  });
+
+  it("links a non-ASCII heading through its percent-encoded href", async () => {
+    const html = await renderHtml("## Café Société\n\n[go](#café-société)\n");
+    expect(html).toContain('id="user-content-café-société"');
+    expect(html).toContain('href="#user-content-caf%C3%A9-soci%C3%A9t%C3%A9"');
+    expect(deadLinks(html)).toEqual([]);
   });
 
   it("keeps the hidden Footnotes heading out of the contents", async () => {
