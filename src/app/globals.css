@@ -1511,12 +1511,15 @@
 }
 
 @media (max-width: 900px) {
-  /* At 320px the theme and size groups are wider than the column; let the
-     size group drop to its own row rather than hang into the gutters. */
+  /* The theme and size groups measure 316px with the desktop gap, a pixel
+     over the 315px column at 360px. A tighter gap keeps them on one row
+     there (312.5px); at 320px they still do not fit, so the size group may
+     drop to its own row rather than hang into the gutters. */
   .share-controls {
     flex-basis: 100%;
     flex-wrap: wrap;
     justify-content: center;
+    column-gap: 0.4rem;
     margin-left: 0;
   }
 
