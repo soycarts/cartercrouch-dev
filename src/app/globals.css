@@ -605,6 +605,23 @@
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    /* Scroll cue: a soft shadow on whichever edge has more table behind it.
+       The two paper covers scroll with the content (local) and hide the
+       edge shadows (scroll) once that edge is reached, so a table that fits
+       shows nothing at all. */
+    background:
+      linear-gradient(to right, var(--paper) 30%, transparent) left / 2rem 100% no-repeat local,
+      linear-gradient(to left, var(--paper) 30%, transparent) right / 2rem 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent)
+        left / 0.8rem 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent)
+        right / 0.8rem 100% no-repeat scroll;
+    background-color: var(--paper);
+  }
+
+  /* The diff tints its blocks; a paper-coloured box would hide the tint. */
+  .share-diff-prose .table-scroll {
+    background: none;
   }
 
   .prose-body table {
@@ -891,6 +908,7 @@
      than its column (a URL, a long identifier) may break inside itself now. */
   .table-scroll {
     overflow: visible;
+    background: none; /* pdf.ts prints backgrounds; no scroll cue on paper */
   }
 
   .prose-body table {
@@ -1493,10 +1511,29 @@
 }
 
 @media (max-width: 900px) {
+  /* The theme and size groups measure 316px with the desktop gap, a pixel
+     over the 315px column at 360px. A tighter gap keeps them on one row
+     there (312.5px); at 320px they still do not fit, so the size group may
+     drop to its own row rather than hang into the gutters. */
   .share-controls {
     flex-basis: 100%;
+    flex-wrap: wrap;
     justify-content: center;
+    column-gap: 0.4rem;
     margin-left: 0;
+  }
+
+  /* The draft menu and the view toggle, likewise. */
+  .share-modes {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* One rule between the bar and the pane, not two with air between: the
+     pane's first item (the files or contents summary) brings its own top
+     rule. The popup's bar has no pane after it and keeps its rule. */
+  .share-bar:has(+ .share-layout) {
+    border-bottom: 0;
   }
 
   /* Everything on the bar becomes a finger-sized target. The action's

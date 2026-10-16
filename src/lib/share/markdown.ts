@@ -84,6 +84,65 @@ function rehypeWrapTables() {
   };
 }
 
+/**
+ * Point in-document links at the ids the sanitizer actually wrote.
+ *
+ * rehype-sanitize prefixes every id with `user-content-` (protection against
+ * DOM clobbering) but leaves `href="#x"` alone, so `[see](#x)` and footnote
+ * references went nowhere. This runs after sanitize, like the table wrapper,
+ * over the whole document, and touches only fragment links.
+ *
+ * It rewrites `#x` only when the tree has an element `user-content-x`, and
+ * leaves every other fragment as written: `#top` (which browsers scroll to the
+ * top of the page when no element has that id), a bare `#`, a link to a
+ * missing target, and a link that already resolves (one copied from the page).
+ *
+ * Ids and hrefs are compared raw and percent-decoded, as browsers do: heading
+ * links arrive encoded (`#caf%C3%A9`) against a raw id (`café`), while footnote
+ * ids and hrefs are both encoded.
+ */
+const ID_PREFIX = "user-content-";
+function decodeFragment(fragment: string): string | null {
+  try {
+    return decodeURIComponent(fragment);
+  } catch {
+    return null;
+  }
+}
+function rehypePrefixHashLinks() {
+  return (root: HastRoot) => {
+    const ids = new Set<string>();
+    const collect = (nodes: RootContent[]) => {
+      for (const node of nodes) {
+        if (node.type !== "element") continue;
+        const id = node.properties?.id;
+        if (typeof id === "string" && id) ids.add(id);
+        collect(node.children as RootContent[]);
+      }
+    };
+    collect(root.children);
+
+    const resolves = (fragment: string) => {
+      const decoded = decodeFragment(fragment);
+      return ids.has(fragment) || (decoded !== null && ids.has(decoded));
+    };
+    const walk = (nodes: RootContent[]) => {
+      for (const node of nodes) {
+        if (node.type !== "element") continue;
+        const href = node.tagName === "a" ? node.properties?.href : undefined;
+        if (typeof href === "string" && href.length > 1 && href.startsWith("#")) {
+          const fragment = href.slice(1);
+          if (!resolves(fragment) && resolves(`${ID_PREFIX}${fragment}`)) {
+            node.properties.href = `#${ID_PREFIX}${fragment}`;
+          }
+        }
+        walk(node.children as RootContent[]);
+      }
+    };
+    walk(root.children);
+  };
+}
+
 // A line that carries on a list item's paragraph without being indented to
 // the item's content column — CommonMark's "lazy continuation".
 const LIST_MARKER = /^(\s*)([-*+]|\d{1,9}[.)])([ \t]+)(?=\S)/;
@@ -400,10 +459,14 @@ const processor = unified()
   // off). remark-breaks only touches soft breaks in paragraph text — tables,
   // code blocks, and lists are parsed before it ever sees them.
   .use(remarkBreaks)
-  .use(remarkRehype)
+  // Leave the one id prefix to rehype-sanitize: remark-rehype's own footnote
+  // prefix stacked under it, giving "user-content-user-content-fn-1" ids that
+  // no footnote link pointed at.
+  .use(remarkRehype, { clobberPrefix: "" })
   .use(rehypeSlug)
   .use(rehypeSanitize, schema)
-  .use(rehypeWrapTables);
+  .use(rehypeWrapTables)
+  .use(rehypePrefixHashLinks);
 
 const stringifier = unified().use(rehypeStringify);
 const decorator = unified().use(rehypeSanitize, decoratedSchema);
@@ -493,7 +556,12 @@ export function inferDescriptionFromTree(
   return fallback ? clip(fallback) : null;
 }
 
-/** H2–H4 with their ids, in document order, for the contents pane. */
+/**
+ * H2–H4 with their ids, in document order, for the contents pane. A heading
+ * that is only there for screen readers (the "Footnotes" label GFM puts over
+ * the footnote list) is not a place a reader would navigate to, so it is left
+ * out.
+ */
 export function tocFromTree(root: HastRoot): TocEntry[] {
   const out: TocEntry[] = [];
   const walk = (nodes: RootContent[]) => {
@@ -501,7 +569,8 @@ export function tocFromTree(root: HastRoot): TocEntry[] {
       if (node.type !== "element") continue;
       const depth = /^h([2-4])$/.exec(node.tagName)?.[1];
       const id = String(node.properties?.id ?? "");
-      if (depth && id) {
+      const hidden = ([] as unknown[]).concat(node.properties?.className ?? []).includes("sr-only");
+      if (depth && id && !hidden) {
         const text = hastToString(node).replace(/\s+/g, " ").trim();
         if (text) out.push({ depth: Number(depth), id, text });
       }
